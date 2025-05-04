@@ -12,6 +12,9 @@ export default function StatusBadge({ status, priority = false, showIcon = false
   const getBadgeVariant = () => {
     if (priority) return "destructive";
     
+    // Handle null or undefined status
+    if (!status) return "secondary";
+    
     switch (status.toLowerCase()) {
       case 'pending':
         return "default";
@@ -34,6 +37,9 @@ export default function StatusBadge({ status, priority = false, showIcon = false
   const getDisplayText = () => {
     if (priority) return "Urgent";
     
+    // Handle null or undefined status
+    if (!status) return "Unknown";
+    
     switch (status.toLowerCase()) {
       case 'pending':
         return "Pending";
@@ -55,6 +61,9 @@ export default function StatusBadge({ status, priority = false, showIcon = false
   // Custom class based on variant
   const getCustomClass = () => {
     if (priority) return "bg-red-100 text-red-800";
+    
+    // Handle null or undefined status
+    if (!status) return "bg-slate-100 text-slate-800";
     
     switch (status.toLowerCase()) {
       case 'pending':

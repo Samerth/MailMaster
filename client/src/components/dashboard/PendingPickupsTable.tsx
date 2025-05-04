@@ -54,7 +54,7 @@ export default function PendingPickupsTable() {
   const pageSize = 10;
 
   // Fetch pending mail items
-  const { data, isLoading, error } = useQuery<{ items: PendingMailItem[], total: number }>({
+  const { data, isLoading, error } = useQuery<PendingMailItem[]>({
     queryKey: ['/api/mail-items/pending', { page: currentPage, search, pageSize }],
   });
 
@@ -73,8 +73,9 @@ export default function PendingPickupsTable() {
     console.log('View details for item:', itemId);
   };
 
-  // Calculate total pages
-  const totalPages = data ? Math.ceil(data.total / pageSize) : 0;
+  // Calculate total pages - handle undefined or null data
+  const totalItems = data?.length || 0;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
   // Generate array of page numbers
   const pageNumbers = [];
@@ -143,8 +144,8 @@ export default function PendingPickupsTable() {
                   Failed to load mail items. Please try again.
                 </TableCell>
               </TableRow>
-            ) : data && data.items.length > 0 ? (
-              data.items.map((item) => (
+            ) : data && data.length > 0 ? (
+              data.map((item) => (
                 <TableRow key={item.id} className="hover:bg-slate-50">
                   <TableCell className="py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -226,7 +227,7 @@ export default function PendingPickupsTable() {
         </Table>
       </div>
       
-      {data && data.total > 0 && (
+      {data && data.length > 0 && (
         <CardFooter className="border-t border-slate-200 px-4 py-3 flex items-center justify-between">
           <div className="flex-1 flex justify-between sm:hidden">
             <Button
@@ -251,25 +252,32 @@ export default function PendingPickupsTable() {
               <p className="text-sm text-slate-700">
                 Showing <span className="font-medium">{((currentPage - 1) * pageSize) + 1}</span> to{" "}
                 <span className="font-medium">
-                  {Math.min(currentPage * pageSize, data.total)}
+                  {Math.min(currentPage * pageSize, totalItems)}
                 </span>{" "}
-                of <span className="font-medium">{data.total}</span> results
+                of <span className="font-medium">{totalItems}</span> results
               </p>
             </div>
             <Pagination>
               <PaginationContent>
                 <PaginationItem>
                   <PaginationPrevious 
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setCurrentPage(Math.max(1, currentPage - 1));
+                    }}
                   />
                 </PaginationItem>
                 
                 {pageNumbers.map(page => (
                   <PaginationItem key={page}>
                     <PaginationLink
+                      href="#"
                       isActive={page === currentPage}
-                      onClick={() => setCurrentPage(page)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage(page);
+                      }}
                     >
                       {page}
                     </PaginationLink>
@@ -278,8 +286,11 @@ export default function PendingPickupsTable() {
                 
                 <PaginationItem>
                   <PaginationNext
-                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                    disabled={currentPage === totalPages}
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setCurrentPage(Math.min(totalPages, currentPage + 1));
+                    }}
                   />
                 </PaginationItem>
               </PaginationContent>

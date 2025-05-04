@@ -90,20 +90,28 @@ export default function DashboardStats() {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-sm font-medium text-slate-500">Avg Processing</p>
-              <p className="text-2xl font-bold text-slate-800">{stats.avgProcessingDays?.toFixed(1) || '0.0'} days</p>
+              <p className="text-2xl font-bold text-slate-800">
+                {typeof stats.avgProcessingDays === 'number' 
+                  ? stats.avgProcessingDays.toFixed(1) 
+                  : '0.0'} days
+              </p>
             </div>
             <div className="p-2 bg-blue-100 rounded-md text-blue-600">
               <Clock className="h-5 w-5" />
             </div>
           </div>
           <div className="mt-2 flex items-center text-xs">
-            <span className="text-slate-500">{stats.processingDiff > 0 ? '+' : ''}{stats.processingDiff?.toFixed(1) || '0.0'} days this week</span>
-            {stats.processingDiff < 0 && (
+            <span className="text-slate-500">
+              {typeof stats.processingDiff === 'number' 
+                ? (stats.processingDiff > 0 ? '+' : '') + stats.processingDiff.toFixed(1) 
+                : '0.0'} days this week
+            </span>
+            {typeof stats.processingDiff === 'number' && stats.processingDiff < 0 && (
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-green-500 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             )}
-            {stats.processingDiff > 0 && (
+            {typeof stats.processingDiff === 'number' && stats.processingDiff > 0 && (
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-red-500 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
               </svg>
