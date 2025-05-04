@@ -37,11 +37,6 @@ export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<string>("login");
   const { user, loginMutation, registerMutation } = useAuth();
   
-  // If user is already logged in, redirect to home
-  if (user) {
-    return <Redirect to="/" />;
-  }
-
   // Login form
   const loginForm = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -62,6 +57,12 @@ export default function AuthPage() {
       confirmPassword: "",
     },
   });
+  
+  // If user is already logged in, redirect to home
+  // IMPORTANT: This needs to be after all the hooks are called
+  if (user) {
+    return <Redirect to="/" />;
+  }
 
   // Handle login submission
   const onLoginSubmit = (values: LoginValues) => {
