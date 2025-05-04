@@ -45,6 +45,7 @@ export const userProfiles = pgTable('user_profiles', {
   firstName: text('first_name').notNull(),
   lastName: text('last_name').notNull(),
   email: text('email').notNull(),
+  password: text('password'),
   phone: text('phone'),
   role: userRoleEnum('role').default('recipient').notNull(),
   department: text('department'),
@@ -301,6 +302,7 @@ export const userProfilesInsertSchema = createInsertSchema(userProfiles, {
   firstName: (schema) => schema.min(2, "First name must be at least 2 characters"),
   lastName: (schema) => schema.min(2, "Last name must be at least 2 characters"),
   email: (schema) => schema.email("Must provide a valid email"),
+  password: (schema) => schema.optional(),
 });
 export type UserProfileInsert = z.infer<typeof userProfilesInsertSchema>;
 export type UserProfile = typeof userProfiles.$inferSelect;
