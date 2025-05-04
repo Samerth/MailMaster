@@ -126,7 +126,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: req.body.type || "package",
         notes: req.body.notes || null,
         isPriority: !!req.body.isPriority,
-        status: "pending",
+        status: schema.mailItemStatusEnum.enumValues[0], // "pending"
         processedById: req.user.id,
         labelImage: req.body.labelImage || null,
       };
@@ -139,11 +139,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await db.insert(schema.auditLogs)
         .values([{
           organizationId: req.user.organizationId,
-          action: "create",
+          action: schema.auditActionEnum.enumValues[0], // "create"
           details: `Created new mail item (${mailItem.type}) for recipient ID ${mailItem.recipientId}`,
-          resourceType: "mail_item",
-          resourceId: mailItem.id,
-          createdById: req.user.id
+          tableName: "mail_items",
+          recordId: mailItem.id,
+          userId: req.user.id
         }]);
       
       res.status(201).json(mailItem);
