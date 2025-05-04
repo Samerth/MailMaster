@@ -1,6 +1,16 @@
 import { db } from "./index";
 import * as schema from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { scrypt, randomBytes } from "crypto";
+import { promisify } from "util";
+
+const scryptAsync = promisify(scrypt);
+
+async function hashPassword(password: string) {
+  const salt = randomBytes(16).toString("hex");
+  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${buf.toString("hex")}.${salt}`;
+}
 
 async function seed() {
   try {
@@ -77,6 +87,9 @@ async function seed() {
       console.log(`Created ${insertedMailrooms.length} mailrooms`);
 
       // Create user profiles (staff and recipients)
+      // Create default password for all users
+      const defaultPassword = await hashPassword("password123");
+      
       const usersToInsert = [
         // Admin for Acme Corp
         {
@@ -86,6 +99,7 @@ async function seed() {
           firstName: "John",
           lastName: "Smith",
           email: "john.smith@acmecorp.com",
+          password: defaultPassword,
           phone: "415-555-1234",
           role: "admin",
           department: "Facilities",
@@ -102,6 +116,7 @@ async function seed() {
           firstName: "Mark",
           lastName: "Wilson",
           email: "mark.wilson@acmecorp.com",
+          password: defaultPassword,
           phone: "415-555-2345",
           role: "staff",
           department: "Mailroom",
@@ -118,6 +133,7 @@ async function seed() {
           firstName: "Sarah",
           lastName: "Johnson",
           email: "sarah.johnson@acmecorp.com",
+          password: defaultPassword,
           phone: "415-555-3456",
           role: "recipient",
           department: "Marketing",
@@ -133,6 +149,7 @@ async function seed() {
           firstName: "James",
           lastName: "Peterson",
           email: "james.peterson@acmecorp.com",
+          password: defaultPassword,
           phone: "415-555-4567",
           role: "recipient",
           department: "Engineering",
@@ -148,6 +165,7 @@ async function seed() {
           firstName: "Jessica",
           lastName: "Davis",
           email: "jessica.davis@acmecorp.com",
+          password: defaultPassword,
           phone: "415-555-5678",
           role: "recipient",
           department: "Accounting",
@@ -164,6 +182,7 @@ async function seed() {
           firstName: "David",
           lastName: "Lee",
           email: "david.lee@techspace.com",
+          password: defaultPassword,
           phone: "650-555-1234",
           role: "admin",
           department: "Operations",
@@ -180,6 +199,7 @@ async function seed() {
           firstName: "Emily",
           lastName: "Chen",
           email: "emily.chen@techspace.com",
+          password: defaultPassword,
           phone: "650-555-2345",
           role: "staff",
           department: "Facilities",
