@@ -108,6 +108,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Internal server error" });
     }
   });
+  
+  // Create a new mail item
+  app.post("/api/mail-items", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      // Create a new mail item
+      const mailItemData = {
+        organizationId: req.user.organizationId,
+        mailRoomId: req.body.mailRoomId || req.user.mailRoomId,
+        recipientId: req.body.recipientId,
+        trackingNumber: req.body.trackingNumber || null,
+        carrier: req.body.carrier || "other",
+        type: req.body.type || "package",
+        notes: req.body.notes || null,
+        isPriority: !!req.body.isPriority,
+        status: "pending",
+        processedById: req.user.id,
+        labelImage: req.body.labelImage || null,
+      };
+      
+      const [mailItem] = await db.insert(schema.mailItems)
+        .values([mailItemData])
+        .returning();
+      
+      // Create an audit log entry
+      await db.insert(schema.auditLogs)
+        .values([{
+          organizationId: req.user.organizationId,
+          action: "create",
+          details: `Created new mail item (${mailItem.type}) for recipient ID ${mailItem.recipientId}`,
+          resourceType: "mail_item",
+          resourceId: mailItem.id,
+          createdById: req.user.id
+        }]);
+      
+      res.status(201).json(mailItem);
+    } catch (error) {
+      console.error("Error creating mail item:", error);
+      res.status(500).json({ message: "Failed to create mail item" });
+    }
+  });
 
   // Recipients
   app.get("/api/recipients", async (req, res) => {

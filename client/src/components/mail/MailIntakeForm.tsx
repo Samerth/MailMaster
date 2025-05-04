@@ -79,64 +79,7 @@ export default function MailIntakeForm({ open, onClose, mailroomId }: MailIntake
       isPriority: false,
     },
   });
-
-  const mutation = useMutation({
-    mutationFn: async (values: FormValues) => {
-      const data = {
-        ...values,
-        recipientId: parseInt(values.recipientId),
-        mailRoomId: mailroomId,
-        labelImage: imageData,
-      };
-      
-      const response = await apiRequest("POST", "/api/mail-items", data);
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Mail item recorded",
-        description: "The mail item has been successfully recorded and the recipient notified.",
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/mail-items/pending'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/activities/recent'] });
-      form.reset();
-      setImageData(null);
-      setScanningResult(null);
-      onClose();
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to record mail item. Please try again.",
-        variant: "destructive",
-      });
-      console.error("Error recording mail item:", error);
-    },
-  });
-
-  const handleSubmit = (values: FormValues) => {
-    mutation.mutate(values);
-  };
-
-  const activateCamera = async () => {
-    setScanningActive(true);
-    try {
-      // This would typically use a camera API or component
-      // For simplicity, we're using the file input instead
-      if (fileInputRef.current) {
-        fileInputRef.current.click();
-      }
-    } catch (error) {
-      console.error("Camera error:", error);
-      setScanningActive(false);
-      toast({
-        title: "Camera Error",
-        description: "Unable to access camera. Please try uploading an image instead.",
-        variant: "destructive",
-      });
-    }
-  };
-
+  
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
@@ -188,6 +131,62 @@ export default function MailIntakeForm({ open, onClose, mailroomId }: MailIntake
         variant: "destructive",
       });
     }
+  };
+
+  const activateCamera = async () => {
+    setScanningActive(true);
+    try {
+      // For now, just fallback to file input
+      if (fileInputRef.current) {
+        fileInputRef.current.click();
+      }
+    } catch (error) {
+      console.error("Camera error:", error);
+      setScanningActive(false);
+      toast({
+        title: "Camera Error",
+        description: "Unable to access camera. Please try uploading an image instead.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const mutation = useMutation({
+    mutationFn: async (values: FormValues) => {
+      const data = {
+        ...values,
+        recipientId: parseInt(values.recipientId),
+        mailRoomId: mailroomId,
+        labelImage: imageData,
+      };
+      
+      const response = await apiRequest("POST", "/api/mail-items", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Mail item recorded",
+        description: "The mail item has been successfully recorded and the recipient notified.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/mail-items/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/activities/recent'] });
+      form.reset();
+      setImageData(null);
+      setScanningResult(null);
+      onClose();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to record mail item. Please try again.",
+        variant: "destructive",
+      });
+      console.error("Error recording mail item:", error);
+    },
+  });
+
+  const handleSubmit = (values: FormValues) => {
+    mutation.mutate(values);
   };
 
   return (
@@ -312,7 +311,7 @@ export default function MailIntakeForm({ open, onClose, mailroomId }: MailIntake
                       <SelectContent>
                         {recipients?.map((recipient) => (
                           <SelectItem key={recipient.id} value={recipient.id.toString()}>
-                            {recipient.firstName} {recipient.lastName} ({recipient.department})
+                            {recipient.firstName} {recipient.lastName} {recipient.department ? `(${recipient.department})` : ""}
                           </SelectItem>
                         ))}
                       </SelectContent>
