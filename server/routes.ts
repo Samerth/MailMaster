@@ -127,8 +127,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add recipient
-  app.post("/api/recipients", async (req, res) => {
+  // Get internal recipients
+  app.get("/api/recipients/internal", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      const recipients = await db.query.userProfiles.findMany({
+        where: and(
+          eq(schema.userProfiles.organizationId, req.user.organizationId),
+          eq(schema.userProfiles.role, "recipient")
+        )
+      });
+      
+      res.json(recipients);
+    } catch (error) {
+      console.error("Error fetching internal recipients:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get external recipients
+  app.get("/api/recipients/external", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      const recipients = await db.query.externalPeople.findMany({
+        where: eq(schema.externalPeople.organizationId, req.user.organizationId)
+      });
+      
+      res.json(recipients);
+    } catch (error) {
+      console.error("Error fetching external recipients:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Add internal recipient
+  app.post("/api/recipients/internal", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Not authenticated" });
     }
@@ -139,18 +178,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const [recipient] = await db.insert(schema.userProfiles)
         .values({
-          ...req.body,
+          firstName: req.body.firstName,
+          lastName: req.body.lastName,
+          email: req.body.email,
+          phone: req.body.phone || null,
+          department: req.body.department || null,
+          location: req.body.location || null,
           userId,
           organizationId: req.user.organizationId,
-          mailRoomId: req.user.mailRoomId,
+          mailRoomId: req.user.mailRoomId || null,
           role: "recipient",
           password: await hashPassword("welcome123"), // Default password
         })
         .returning();
       
-      res.status(201).json(recipient);
+      res.json(recipient);
     } catch (error) {
-      console.error("Error creating recipient:", error);
+      console.error("Error creating internal recipient:", error);
+      res.status(500).json({ message: "Failed to create recipient" });
+    }
+  });
+
+  // Add external recipient
+  app.post("/api/recipients/external", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      const [recipient] = await db.insert(schema.externalPeople)
+        .values({
+          firstName: req.body.firstName,
+          lastName: req.body.lastName,
+          email: req.body.email,
+          phone: req.body.phone || null,
+          department: req.body.department || null,
+          location: req.body.location || null,
+          organizationId: req.user.organizationId,
+        })
+        .returning();
+      
+      res.json(recipient);
+    } catch (error) {
+      console.error("Error creating external recipient:", error);
       res.status(500).json({ message: "Failed to create recipient" });
     }
   });
