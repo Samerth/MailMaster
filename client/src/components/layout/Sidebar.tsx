@@ -24,7 +24,7 @@ interface SidebarProps {
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const [location] = useLocation();
   const { organizations, currentOrganization, setCurrentOrganization } = useOrganizations();
-  const { user, signOut } = useAuth();
+  const { user, logoutMutation } = useAuth();
   const { toast } = useToast();
 
   const handleOrganizationChange = (value: string) => {
@@ -42,7 +42,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
   const handleSignOut = async () => {
     try {
-      await signOut();
+      logoutMutation.mutate();
     } catch (error) {
       toast({
         title: "Error",
@@ -109,73 +109,78 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       <div className="flex-1 overflow-y-auto">
         <nav className="p-2 space-y-1">
           {/* Dashboard */}
-          <Link href="/dashboard">
-            <a className={`flex items-center px-4 py-2.5 text-sm font-medium ${
+          <Link 
+            href="/dashboard"
+            className={`flex items-center px-4 py-2.5 text-sm font-medium ${
               location === "/dashboard" 
                 ? "text-white bg-slate-700 rounded-md"
                 : "text-slate-300 hover:bg-slate-700 rounded-md"
-            } group`}>
-              <BarChart3 className={`w-6 h-6 mr-3 ${
-                location === "/dashboard" ? "text-primary" : "text-slate-400 group-hover:text-primary"
-              }`} />
-              Dashboard
-            </a>
+            } group`}
+          >
+            <BarChart3 className={`w-6 h-6 mr-3 ${
+              location === "/dashboard" ? "text-primary" : "text-slate-400 group-hover:text-primary"
+            }`} />
+            Dashboard
           </Link>
           
           {/* Mail Intake */}
-          <Link href="/mail-intake">
-            <a className={`flex items-center px-4 py-2.5 text-sm font-medium ${
+          <Link 
+            href="/mail-intake"
+            className={`flex items-center px-4 py-2.5 text-sm font-medium ${
               location === "/mail-intake" 
                 ? "text-white bg-slate-700 rounded-md"
                 : "text-slate-300 hover:bg-slate-700 rounded-md"
-            } group`}>
-              <Inbox className={`w-6 h-6 mr-3 ${
-                location === "/mail-intake" ? "text-primary" : "text-slate-400 group-hover:text-primary"
-              }`} />
-              Mail Intake
-            </a>
+            } group`}
+          >
+            <Inbox className={`w-6 h-6 mr-3 ${
+              location === "/mail-intake" ? "text-primary" : "text-slate-400 group-hover:text-primary"
+            }`} />
+            Mail Intake
           </Link>
           
           {/* Pending Pickups */}
-          <Link href="/pickups">
-            <a className={`flex items-center px-4 py-2.5 text-sm font-medium ${
+          <Link 
+            href="/pickups"
+            className={`flex items-center px-4 py-2.5 text-sm font-medium ${
               location === "/pickups" 
                 ? "text-white bg-slate-700 rounded-md"
                 : "text-slate-300 hover:bg-slate-700 rounded-md"
-            } group`}>
-              <Package className={`w-6 h-6 mr-3 ${
-                location === "/pickups" ? "text-primary" : "text-slate-400 group-hover:text-primary"
-              }`} />
-              Pending Pickups
-            </a>
+            } group`}
+          >
+            <Package className={`w-6 h-6 mr-3 ${
+              location === "/pickups" ? "text-primary" : "text-slate-400 group-hover:text-primary"
+            }`} />
+            Pending Pickups
           </Link>
           
           {/* Recipients */}
-          <Link href="/recipients">
-            <a className={`flex items-center px-4 py-2.5 text-sm font-medium ${
+          <Link 
+            href="/recipients"
+            className={`flex items-center px-4 py-2.5 text-sm font-medium ${
               location === "/recipients" 
                 ? "text-white bg-slate-700 rounded-md"
                 : "text-slate-300 hover:bg-slate-700 rounded-md"
-            } group`}>
-              <Users className={`w-6 h-6 mr-3 ${
-                location === "/recipients" ? "text-primary" : "text-slate-400 group-hover:text-primary"
-              }`} />
-              Recipients
-            </a>
+            } group`}
+          >
+            <Users className={`w-6 h-6 mr-3 ${
+              location === "/recipients" ? "text-primary" : "text-slate-400 group-hover:text-primary"
+            }`} />
+            Recipients
           </Link>
           
           {/* History */}
-          <Link href="/history">
-            <a className={`flex items-center px-4 py-2.5 text-sm font-medium ${
+          <Link 
+            href="/history"
+            className={`flex items-center px-4 py-2.5 text-sm font-medium ${
               location === "/history" 
                 ? "text-white bg-slate-700 rounded-md"
                 : "text-slate-300 hover:bg-slate-700 rounded-md"
-            } group`}>
-              <History className={`w-6 h-6 mr-3 ${
-                location === "/history" ? "text-primary" : "text-slate-400 group-hover:text-primary"
-              }`} />
-              History
-            </a>
+            } group`}
+          >
+            <History className={`w-6 h-6 mr-3 ${
+              location === "/history" ? "text-primary" : "text-slate-400 group-hover:text-primary"
+            }`} />
+            History
           </Link>
           
           {/* Admin separator */}
@@ -189,31 +194,33 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           </div>
           
           {/* Integrations */}
-          <Link href="/integrations">
-            <a className={`flex items-center px-4 py-2.5 text-sm font-medium ${
+          <Link 
+            href="/integrations"
+            className={`flex items-center px-4 py-2.5 text-sm font-medium ${
               location === "/integrations" 
                 ? "text-white bg-slate-700 rounded-md"
                 : "text-slate-300 hover:bg-slate-700 rounded-md"
-            } group`}>
-              <Plug className={`w-6 h-6 mr-3 ${
-                location === "/integrations" ? "text-primary" : "text-slate-400 group-hover:text-primary"
-              }`} />
-              Integrations
-            </a>
+            } group`}
+          >
+            <Plug className={`w-6 h-6 mr-3 ${
+              location === "/integrations" ? "text-primary" : "text-slate-400 group-hover:text-primary"
+            }`} />
+            Integrations
           </Link>
           
           {/* Settings */}
-          <Link href="/settings">
-            <a className={`flex items-center px-4 py-2.5 text-sm font-medium ${
+          <Link 
+            href="/settings"
+            className={`flex items-center px-4 py-2.5 text-sm font-medium ${
               location === "/settings" 
                 ? "text-white bg-slate-700 rounded-md"
                 : "text-slate-300 hover:bg-slate-700 rounded-md"
-            } group`}>
-              <Settings className={`w-6 h-6 mr-3 ${
-                location === "/settings" ? "text-primary" : "text-slate-400 group-hover:text-primary"
-              }`} />
-              Settings
-            </a>
+            } group`}
+          >
+            <Settings className={`w-6 h-6 mr-3 ${
+              location === "/settings" ? "text-primary" : "text-slate-400 group-hover:text-primary"
+            }`} />
+            Settings
           </Link>
         </nav>
       </div>
