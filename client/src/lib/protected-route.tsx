@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
-import { Route, Redirect } from "wouter";
+import { Redirect, Route } from "wouter";
+import AppLayout from "@/components/layout/AppLayout";
 
 export function ProtectedRoute({
   path,
@@ -15,7 +16,7 @@ export function ProtectedRoute({
     return (
       <Route path={path}>
         <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="h-8 w-8 animate-spin text-border" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       </Route>
     );
@@ -29,5 +30,11 @@ export function ProtectedRoute({
     );
   }
 
-  return <Route path={path} component={Component} />;
+  return (
+    <Route path={path}>
+      <AppLayout>
+        <Component />
+      </AppLayout>
+    </Route>
+  );
 }

@@ -63,13 +63,13 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
       
       // Set current organization to the first one or keep existing if it's in the list
       const existingOrgStillValid = currentOrganization && 
-        orgsData.some(org => org.id === currentOrganization.id);
+        orgsData.some((org: Organization) => org.id === currentOrganization.id);
           
       if (!existingOrgStillValid && orgsData.length > 0) {
         setCurrentOrganization(orgsData[0]);
       }
     }
-  }, [orgsData]);
+  }, [orgsData, currentOrganization]);
 
   // Update mailrooms state when data changes
   useEffect(() => {
@@ -78,7 +78,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
       
       // Set current mailroom to the first one or keep existing if it's in the list
       const existingMailroomStillValid = currentMailroom && 
-        mailroomsData.some(mr => mr.id === currentMailroom.id);
+        mailroomsData.some((mr: MailRoom) => mr.id === currentMailroom.id);
           
       if (!existingMailroomStillValid && mailroomsData.length > 0) {
         setCurrentMailroom(mailroomsData[0]);
@@ -86,7 +86,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
         setCurrentMailroom(null);
       }
     }
-  }, [mailroomsData]);
+  }, [mailroomsData, currentMailroom]);
 
   // Update loading state
   useEffect(() => {
