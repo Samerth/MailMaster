@@ -1,7 +1,8 @@
 import { createContext, useState, useEffect, ReactNode } from "react";
-import supabase from "@/lib/supabaseClient";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import type { Organization, MailRoom } from "@shared/schema";
+import { getQueryFn } from "@/lib/queryClient";
 
 interface OrganizationContextType {
   organizations: Organization[];
@@ -28,7 +29,7 @@ interface OrganizationProviderProps {
 }
 
 export function OrganizationProvider({ children }: OrganizationProviderProps) {
-  const { user, isAuthenticated } = useAuth();
+  const { user } = useAuth();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null);
   const [mailrooms, setMailrooms] = useState<MailRoom[]>([]);
@@ -36,94 +37,61 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch organizations the user has access to
-  useEffect(() => {
-    const fetchOrganizations = async () => {
-      if (!isAuthenticated || !user) {
-        setOrganizations([]);
-        setCurrentOrganization(null);
-        setIsLoading(false);
-        return;
-      }
-
-      setIsLoading(true);
-      try {
-        // Fetch organizations based on user's organization ID
-        const { data, error } = await supabase
-          .from('organizations')
-          .select('*')
-          .eq('id', user.organizationId);
-
-        if (error) {
-          console.error("Error fetching organizations:", error);
-          return;
-        }
-
-        if (data && data.length > 0) {
-          setOrganizations(data as Organization[]);
-          
-          // Set current organization to the first one or keep existing if it's in the list
-          const existingOrgStillValid = currentOrganization && 
-            data.some(org => org.id === currentOrganization.id);
-            
-          if (existingOrgStillValid) {
-            // Keep current organization
-          } else {
-            setCurrentOrganization(data[0] as Organization);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to fetch organizations:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchOrganizations();
-  }, [user, isAuthenticated]);
+  const {
+    data: orgsData,
+    isLoading: orgsLoading,
+  } = useQuery<Organization[]>({
+    queryKey: ['/api/organizations'],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    enabled: !!user,
+  });
 
   // Fetch mailrooms when organization changes
+  const {
+    data: mailroomsData,
+    isLoading: mailroomsLoading,
+  } = useQuery<MailRoom[]>({
+    queryKey: ['/api/mailrooms', currentOrganization?.id],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    enabled: !!currentOrganization,
+  });
+
+  // Update organizations state when data changes
   useEffect(() => {
-    const fetchMailrooms = async () => {
-      if (!currentOrganization) {
-        setMailrooms([]);
-        setCurrentMailroom(null);
-        return;
-      }
-
-      try {
-        const { data, error } = await supabase
-          .from('mail_rooms')
-          .select('*')
-          .eq('organizationId', currentOrganization.id);
-
-        if (error) {
-          console.error("Error fetching mailrooms:", error);
-          return;
-        }
-
-        if (data && data.length > 0) {
-          setMailrooms(data as MailRoom[]);
+    if (orgsData) {
+      setOrganizations(orgsData);
+      
+      // Set current organization to the first one or keep existing if it's in the list
+      const existingOrgStillValid = currentOrganization && 
+        orgsData.some(org => org.id === currentOrganization.id);
           
-          // Set current mailroom to the first one or keep existing if it's in the list
-          const existingMailroomStillValid = currentMailroom && 
-            data.some(mr => mr.id === currentMailroom.id);
-            
-          if (existingMailroomStillValid) {
-            // Keep current mailroom
-          } else {
-            setCurrentMailroom(data[0] as MailRoom);
-          }
-        } else {
-          setMailrooms([]);
-          setCurrentMailroom(null);
-        }
-      } catch (error) {
-        console.error("Failed to fetch mailrooms:", error);
+      if (!existingOrgStillValid && orgsData.length > 0) {
+        setCurrentOrganization(orgsData[0]);
       }
-    };
+    }
+  }, [orgsData]);
 
-    fetchMailrooms();
-  }, [currentOrganization]);
+  // Update mailrooms state when data changes
+  useEffect(() => {
+    if (mailroomsData) {
+      setMailrooms(mailroomsData);
+      
+      // Set current mailroom to the first one or keep existing if it's in the list
+      const existingMailroomStillValid = currentMailroom && 
+        mailroomsData.some(mr => mr.id === currentMailroom.id);
+          
+      if (!existingMailroomStillValid && mailroomsData.length > 0) {
+        setCurrentMailroom(mailroomsData[0]);
+      } else if (mailroomsData.length === 0) {
+        setCurrentMailroom(null);
+      }
+    }
+  }, [mailroomsData]);
+
+  // Update loading state
+  useEffect(() => {
+    setIsLoading(orgsLoading || mailroomsLoading);
+  }, [orgsLoading, mailroomsLoading]);
 
   return (
     <OrganizationContext.Provider
