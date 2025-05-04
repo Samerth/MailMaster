@@ -1,0 +1,160 @@
+**Replit Instructions for Building a Mailroom Management SaaS Platform**
+
+---
+
+## 📆 Project Overview
+
+A multi-tenant mailroom management SaaS platform with:
+
+* Supabase (Postgres, Auth, Storage)
+* React + TailwindCSS frontend (Replit workspace)
+* AI-enhanced dashboards & OCR automation
+* Integration support for syncing guests/residents/employees
+* Support for managed office buildings with internal business tenants
+
+---
+
+## 🔐 Supabase Project Connection
+
+Use the following environment variables in `.env` or Replit secrets:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://pmpibxcgbkokkmimztwf.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtcGlieGNnYmtva2ttaW16dHdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYzMjQ1NDUsImV4cCI6MjA2MTkwMDU0NX0.TWH54XeAungkmtYR8XJsNTQ_P0NV0DPP2cPOWiWTo6M
+DATABASE_URL=postgresql://postgres:Shivansh1234@db.pmpibxcgbkokkmimztwf.supabase.co:5432/postgres
+```
+
+Use Supabase JS client on the frontend and `pg` or `Prisma` (if needed) on the server/backend.
+
+---
+
+## 🧑‍💻 Development Environment
+
+* **Platform**: Replit (React template with Node backend if needed)
+* **Frontend**: React + TailwindCSS + Recharts
+* **Backend**: Supabase (Postgres, Auth, Storage)
+* **OCR**: Tesseract.js (client-side)
+* **AI**: Claude/OpenAI via API for dashboard summaries
+
+---
+
+## 📊 Core Features
+
+* Multi-tenant + sub-tenant support
+* Auth with role-based UI
+* Mail intake + OCR + recipient autofill
+* AI-powered insights dashboard
+* Notification triggers
+* CSV/API-based integrations for external person sync
+* Pickup confirmation with signature/photo
+
+---
+
+## 🧱 Database Schema Setup
+
+Use the full Supabase schema as defined below. This includes tables, views, RLS setup, and sample data:
+
+**Tables:**
+
+* organizations
+* mail\_rooms
+* user\_profiles
+* mail\_items
+* pickups
+* notifications
+* audit\_logs
+* integrations
+* external\_people
+
+**Views:**
+
+* mailroom\_weekly\_stats
+* mailroom\_delayed\_items
+
+**Key Instructions:**
+
+* Enable RLS on all main tables
+* Apply policies using `auth.uid()` and organization-based access
+* Insert seed data for initial organizations and mail\_rooms
+* Include editable user\_profiles based on logged-in auth.uid
+
+> The full schema includes constraints, relationships, and comments. Store it in `schema.sql` for reusability.
+
+---
+
+## 🔖 Folder Structure (Suggested in Replit)
+
+```
+/src
+  /components
+  /pages
+    /dashboard
+    /mail-intake
+    /pickup
+    /admin
+    /integrations
+  /hooks
+  /lib
+  /services
+  /utils
+  /types
+/public
+.env
+supabaseConfig.js
+schema.sql
+```
+
+---
+
+## ✅ Build Workflow in Replit
+
+### 1. Supabase Setup (external)
+
+* Apply full SQL schema (stored in `schema.sql`)
+* Enable RLS and enforce isolation policies
+* Seed `organizations`, `mail_rooms`, and example users
+
+### 2. Replit Project Setup
+
+* Create new Replit project using React template
+* Add TailwindCSS (`postcss.config.js`, `tailwind.config.js`)
+* Use `.env` or Replit Secrets for Supabase credentials
+
+### 3. Connect Supabase
+
+Create `supabaseConfig.js`:
+
+```js
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
+
+export default supabase;
+```
+
+### 4. Begin Feature Development
+
+* Start with login/auth wrapper and user context
+* Build Mail Intake Form with image upload + Tesseract.js OCR
+* Match recipients from `user_profiles` and `external_people`
+* Continue to build dashboard, pickup, admin, and integrations modules
+
+---
+
+## 🚀 Deployment
+
+* Run directly in Replit
+* Secure API keys and secrets
+* Serve frontend from Replit and connect to Supabase backend
+
+---
+
+## 📆 Future Enhancements
+
+* Smart lockers / kiosk APIs
+* API billing, branded portals
+* Real-time pickup forecasting
+* Multilingual UI
