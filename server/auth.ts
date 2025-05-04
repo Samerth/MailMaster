@@ -3,6 +3,7 @@ import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";
 import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import crypto from "crypto";
 import { promisify } from "util";
 import { db } from "@db";
 import * as schema from "@shared/schema";
@@ -125,9 +126,30 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ message: "Username already exists" });
       }
 
+      // Generate a UUID for the user
+      const userId = crypto.randomUUID();
+
+      // Get the first organization for new users
+      // In a real app, we'd have a proper onboarding flow
+      const organizations = await db.query.organizations.findMany({ limit: 1 });
+      if (organizations.length === 0) {
+        return res.status(500).json({ message: "No organizations found" });
+      }
+
+      // Get a mailroom from this organization
+      const mailrooms = await db.query.mailRooms.findMany({
+        where: eq(schema.mailRooms.organizationId, organizations[0].id),
+        limit: 1
+      });
+
       const user = await storage.createUser({
         ...req.body,
+        userId,
+        organizationId: organizations[0].id,
+        mailRoomId: mailrooms.length > 0 ? mailrooms[0].id : undefined,
         password: await hashPassword(req.body.password),
+        // Make registration user a recipient by default
+        role: "recipient",
       });
 
       req.login(user, (err) => {

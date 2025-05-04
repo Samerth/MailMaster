@@ -73,8 +73,9 @@ export default function AuthPage() {
 
   // Handle registration submission
   const onRegisterSubmit = (values: RegisterValues) => {
+    // Map our form fields to what the backend expects
     registerMutation.mutate({
-      username: values.email,
+      username: values.email, // Use email as username
       email: values.email,
       password: values.password,
       firstName: values.firstName,
