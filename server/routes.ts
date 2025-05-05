@@ -115,6 +115,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Internal server error" });
     }
   });
+  
+  // Create mailroom
+  app.post("/api/mailrooms", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      const mailroomData = {
+        organizationId: req.user.organizationId,
+        name: req.body.name,
+        location: req.body.location || null,
+        contactEmail: req.body.contactEmail || null,
+        contactPhone: req.body.contactPhone || null,
+        status: req.body.status || "active",
+      };
+      
+      const [mailroom] = await db.insert(schema.mailRooms)
+        .values(mailroomData)
+        .returning();
+      
+      // Create an audit log
+      await db.insert(schema.auditLogs).values({
+        organizationId: req.user.organizationId,
+        userId: req.user.id,
+        action: "create",
+        tableName: "mail_rooms",
+        recordId: mailroom.id,
+        details: JSON.stringify({ message: `Created mailroom: ${mailroom.name}` })
+      });
+      
+      res.status(201).json(mailroom);
+    } catch (error) {
+      console.error("Error creating mailroom:", error);
+      res.status(500).json({ message: "Failed to create mailroom" });
+    }
+  });
+  
+  // Update mailroom
+  app.patch("/api/mailrooms/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    const mailroomId = parseInt(req.params.id);
+    
+    try {
+      // Verify the mailroom belongs to the user's organization
+      const mailroom = await db.query.mailRooms.findFirst({
+        where: and(
+          eq(schema.mailRooms.id, mailroomId),
+          eq(schema.mailRooms.organizationId, req.user.organizationId)
+        ),
+      });
+      
+      if (!mailroom) {
+        return res.status(404).json({ message: "Mailroom not found" });
+      }
+      
+      // Only update specific fields
+      const allowedFields = ['name', 'location', 'contactEmail', 'contactPhone', 'status'];
+      const updateData: Record<string, any> = {};
+      
+      allowedFields.forEach(field => {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field];
+        }
+      });
+      
+      // Add updatedAt timestamp
+      updateData.updatedAt = new Date();
+      
+      const [updatedMailroom] = await db.update(schema.mailRooms)
+        .set(updateData)
+        .where(eq(schema.mailRooms.id, mailroomId))
+        .returning();
+      
+      // Log the update
+      await db.insert(schema.auditLogs).values({
+        organizationId: req.user.organizationId,
+        userId: req.user.id,
+        action: "update",
+        tableName: "mail_rooms",
+        recordId: mailroomId,
+        details: JSON.stringify({ message: `Updated mailroom: ${mailroom.name}` })
+      });
+      
+      res.json(updatedMailroom);
+    } catch (error) {
+      console.error("Error updating mailroom:", error);
+      res.status(500).json({ message: "Failed to update mailroom" });
+    }
+  });
 
   // Recent activity endpoint
   app.get("/api/recent-activity", async (req, res) => {

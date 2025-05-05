@@ -195,21 +195,10 @@ export default function MailIntakeForm({ open, onClose, mailroomId }: MailIntake
         
         document.body.appendChild(cameraUI);
         
-        // Handle button clicks
-        let handleCapture: (() => void) | null = null;
-        let handleCancel: (() => void) | null = null;
-        
+        // Create a promise to wait for user action
         const result = await new Promise<{ success: boolean, file?: File }>((resolve) => {
-          // Cleanup function
+          // Define the cleanup function that will be used in both buttons
           const cleanup = () => {
-            // Remove event listeners
-            if (handleCapture) {
-              captureButton.removeEventListener('click', handleCapture);
-            }
-            if (handleCancel) {
-              cancelButton.removeEventListener('click', handleCancel);
-            }
-            
             // Stop all video streams
             stream.getTracks().forEach(track => track.stop());
             
@@ -220,8 +209,9 @@ export default function MailIntakeForm({ open, onClose, mailroomId }: MailIntake
             setScanningActive(false);
           };
           
-          // Define our handlers
-          handleCapture = () => {
+          // Set up direct onclick handlers for both buttons
+          captureButton.onclick = function() {
+            console.log("Capture button clicked");
             try {
               // Setup canvas with video dimensions
               canvasElement.width = videoElement.videoWidth;
@@ -259,14 +249,12 @@ export default function MailIntakeForm({ open, onClose, mailroomId }: MailIntake
             }
           };
           
-          handleCancel = () => {
+          // Direct onclick handler for cancel button
+          cancelButton.onclick = function() {
+            console.log("Cancel button clicked");
             cleanup();
             resolve({ success: false });
           };
-          
-          // Add event listeners
-          captureButton.addEventListener('click', handleCapture);
-          cancelButton.addEventListener('click', handleCancel);
         });
         
         // Process the image if capture was successful
