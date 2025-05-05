@@ -39,6 +39,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Internal server error" });
     }
   });
+  
+  // Update organization
+  app.patch("/api/organizations/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    const organizationId = parseInt(req.params.id);
+    
+    // Verify the organization belongs to the user
+    if (organizationId !== req.user.organizationId) {
+      return res.status(403).json({ message: "Unauthorized to update this organization" });
+    }
+    
+    try {
+      // Only update specific fields to prevent unwanted changes
+      const allowedFields = ['name', 'address', 'contactName', 'contactEmail', 'contactPhone', 'logo'];
+      const updateData: Record<string, any> = {};
+      
+      allowedFields.forEach(field => {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field];
+        }
+      });
+      
+      // Add updatedAt timestamp
+      updateData.updatedAt = new Date();
+      
+      const [updatedOrg] = await db.update(schema.organizations)
+        .set(updateData)
+        .where(eq(schema.organizations.id, organizationId))
+        .returning();
+      
+      // Log the update
+      await db.insert(schema.auditLogs)
+        .values({
+          organizationId: req.user.organizationId,
+          userId: req.user.id,
+          action: "update",
+          tableName: "organizations",
+          recordId: organizationId,
+          details: JSON.stringify({ message: "Updated organization settings" })
+        });
+      
+      res.json(updatedOrg);
+    } catch (error) {
+      console.error("Error updating organization:", error);
+      res.status(500).json({ message: "Failed to update organization" });
+    }
+  });
 
   // Mailrooms routes
   app.get("/api/mailrooms", async (req, res) => {

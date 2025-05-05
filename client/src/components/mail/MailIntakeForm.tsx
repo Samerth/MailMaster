@@ -147,6 +147,7 @@ export default function MailIntakeForm({ open, onClose, mailroomId }: MailIntake
         });
         videoElement.srcObject = stream;
         videoElement.setAttribute('playsinline', 'true'); // Required for iOS
+        await videoElement.play(); // Ensure video is playing before proceeding
         
         // Create UI for camera
         const cameraUI = document.createElement('div');
@@ -194,16 +195,24 @@ export default function MailIntakeForm({ open, onClose, mailroomId }: MailIntake
         
         document.body.appendChild(cameraUI);
         
-        // Play video
-        videoElement.play();
+        // Handle button clicks
+        let handleCapture: (() => void) | null = null;
+        let handleCancel: (() => void) | null = null;
         
-        // Capture photo when button is clicked
-        return new Promise<void>((resolve, reject) => {
+        const result = await new Promise<{ success: boolean, file?: File }>((resolve) => {
+          // Cleanup function
           const cleanup = () => {
-            // Stop all video streams
-            if (stream) {
-              stream.getTracks().forEach(track => track.stop());
+            // Remove event listeners
+            if (handleCapture) {
+              captureButton.removeEventListener('click', handleCapture);
             }
+            if (handleCancel) {
+              cancelButton.removeEventListener('click', handleCancel);
+            }
+            
+            // Stop all video streams
+            stream.getTracks().forEach(track => track.stop());
+            
             // Remove the camera UI
             if (document.body.contains(cameraUI)) {
               document.body.removeChild(cameraUI);
@@ -211,7 +220,8 @@ export default function MailIntakeForm({ open, onClose, mailroomId }: MailIntake
             setScanningActive(false);
           };
           
-          captureButton.onclick = () => {
+          // Define our handlers
+          handleCapture = () => {
             try {
               // Setup canvas with video dimensions
               canvasElement.width = videoElement.videoWidth;
@@ -227,55 +237,64 @@ export default function MailIntakeForm({ open, onClose, mailroomId }: MailIntake
                 setImageData(imageDataUrl);
                 
                 // Convert data URL to Blob for OCR processing
-                canvasElement.toBlob(async (blob) => {
+                canvasElement.toBlob((blob) => {
                   if (blob) {
                     // Create a File object from the Blob
                     const file = new File([blob], "camera-image.jpg", { type: "image/jpeg" });
-                    
-                    // Process image with OCR
-                    const result = await extractTrackingInfo(file);
-                    setScanningResult(result);
-                    
-                    // Update form values with OCR results
-                    if (result.trackingNumber) {
-                      form.setValue("trackingNumber", result.trackingNumber);
-                    }
-                    
-                    if (result.carrier) {
-                      form.setValue("carrier", result.carrier.toLowerCase());
-                    }
-                    
-                    if (result.recipient && recipients) {
-                      // Try to find recipient by name
-                      const fullName = result.recipient.toLowerCase();
-                      const matchedRecipient = recipients.find(r => 
-                        `${r.firstName} ${r.lastName}`.toLowerCase().includes(fullName)
-                      );
-                      
-                      if (matchedRecipient) {
-                        form.setValue("recipientId", matchedRecipient.id.toString());
-                      }
-                    }
+                    cleanup();
+                    resolve({ success: true, file });
+                  } else {
+                    cleanup();
+                    resolve({ success: false });
                   }
-                  
-                  cleanup();
-                  resolve();
                 }, 'image/jpeg', 0.9);
               } else {
                 cleanup();
-                reject(new Error("Could not get canvas context"));
+                resolve({ success: false });
               }
             } catch (error) {
+              console.error("Error capturing image:", error);
               cleanup();
-              reject(error);
+              resolve({ success: false });
             }
           };
           
-          cancelButton.onclick = () => {
+          handleCancel = () => {
             cleanup();
-            resolve();
+            resolve({ success: false });
           };
+          
+          // Add event listeners
+          captureButton.addEventListener('click', handleCapture);
+          cancelButton.addEventListener('click', handleCancel);
         });
+        
+        // Process the image if capture was successful
+        if (result.success && result.file) {
+          const ocrResult = await extractTrackingInfo(result.file);
+          setScanningResult(ocrResult);
+          
+          // Update form values with OCR results
+          if (ocrResult.trackingNumber) {
+            form.setValue("trackingNumber", ocrResult.trackingNumber);
+          }
+          
+          if (ocrResult.carrier) {
+            form.setValue("carrier", ocrResult.carrier.toLowerCase());
+          }
+          
+          if (ocrResult.recipient && recipients) {
+            // Try to find recipient by name
+            const fullName = ocrResult.recipient.toLowerCase();
+            const matchedRecipient = recipients.find(r => 
+              `${r.firstName} ${r.lastName}`.toLowerCase().includes(fullName)
+            );
+            
+            if (matchedRecipient) {
+              form.setValue("recipientId", matchedRecipient.id.toString());
+            }
+          }
+        }
       } else {
         // Fallback to file input if camera not available
         if (fileInputRef.current) {
