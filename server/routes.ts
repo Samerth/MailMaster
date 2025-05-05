@@ -413,6 +413,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get recent mail items for the mail intake view
+  app.get("/api/mail-items/recent", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      const items = await db.query.mailItems.findMany({
+        where: eq(schema.mailItems.organizationId, req.user.organizationId),
+        orderBy: (mailItems, { desc }) => [desc(mailItems.createdAt)],
+        limit: 20,
+        with: {
+          recipient: true,
+          processedBy: true
+        }
+      });
+      
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching recent mail items:", error);
+      res.status(500).json({ message: "Failed to fetch recent mail items" });
+    }
+  });
+  
   // Add insights endpoints for the dashboard
   app.get("/api/insights/distribution", async (req, res) => {
     if (!req.isAuthenticated()) {

@@ -136,9 +136,151 @@ export default function MailIntakeForm({ open, onClose, mailroomId }: MailIntake
   const activateCamera = async () => {
     setScanningActive(true);
     try {
-      // For now, just fallback to file input
-      if (fileInputRef.current) {
-        fileInputRef.current.click();
+      // Try to access the device camera
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const videoElement = document.createElement('video');
+        const canvasElement = document.createElement('canvas');
+        
+        // Start video stream
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'environment' } 
+        });
+        videoElement.srcObject = stream;
+        videoElement.setAttribute('playsinline', 'true'); // Required for iOS
+        
+        // Create UI for camera
+        const cameraUI = document.createElement('div');
+        cameraUI.style.position = 'fixed';
+        cameraUI.style.top = '0';
+        cameraUI.style.left = '0';
+        cameraUI.style.width = '100%';
+        cameraUI.style.height = '100%';
+        cameraUI.style.backgroundColor = 'rgba(0,0,0,0.9)';
+        cameraUI.style.zIndex = '9999';
+        cameraUI.style.display = 'flex';
+        cameraUI.style.flexDirection = 'column';
+        cameraUI.style.alignItems = 'center';
+        cameraUI.style.justifyContent = 'center';
+        
+        // Add video element
+        videoElement.style.width = '100%';
+        videoElement.style.maxWidth = '500px';
+        videoElement.style.borderRadius = '8px';
+        cameraUI.appendChild(videoElement);
+        
+        // Add capture button
+        const captureButton = document.createElement('button');
+        captureButton.textContent = 'Take Photo';
+        captureButton.style.marginTop = '20px';
+        captureButton.style.padding = '10px 20px';
+        captureButton.style.backgroundColor = '#2563eb';
+        captureButton.style.color = 'white';
+        captureButton.style.border = 'none';
+        captureButton.style.borderRadius = '4px';
+        captureButton.style.cursor = 'pointer';
+        cameraUI.appendChild(captureButton);
+        
+        // Add cancel button
+        const cancelButton = document.createElement('button');
+        cancelButton.textContent = 'Cancel';
+        cancelButton.style.marginTop = '10px';
+        cancelButton.style.padding = '10px 20px';
+        cancelButton.style.backgroundColor = 'transparent';
+        cancelButton.style.color = 'white';
+        cancelButton.style.border = '1px solid white';
+        cancelButton.style.borderRadius = '4px';
+        cancelButton.style.cursor = 'pointer';
+        cameraUI.appendChild(cancelButton);
+        
+        document.body.appendChild(cameraUI);
+        
+        // Play video
+        videoElement.play();
+        
+        // Capture photo when button is clicked
+        return new Promise<void>((resolve, reject) => {
+          const cleanup = () => {
+            // Stop all video streams
+            if (stream) {
+              stream.getTracks().forEach(track => track.stop());
+            }
+            // Remove the camera UI
+            if (document.body.contains(cameraUI)) {
+              document.body.removeChild(cameraUI);
+            }
+            setScanningActive(false);
+          };
+          
+          captureButton.onclick = () => {
+            try {
+              // Setup canvas with video dimensions
+              canvasElement.width = videoElement.videoWidth;
+              canvasElement.height = videoElement.videoHeight;
+              const ctx = canvasElement.getContext('2d');
+              
+              if (ctx) {
+                // Draw video frame to canvas
+                ctx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+                
+                // Convert canvas to data URL
+                const imageDataUrl = canvasElement.toDataURL('image/jpeg');
+                setImageData(imageDataUrl);
+                
+                // Convert data URL to Blob for OCR processing
+                canvasElement.toBlob(async (blob) => {
+                  if (blob) {
+                    // Create a File object from the Blob
+                    const file = new File([blob], "camera-image.jpg", { type: "image/jpeg" });
+                    
+                    // Process image with OCR
+                    const result = await extractTrackingInfo(file);
+                    setScanningResult(result);
+                    
+                    // Update form values with OCR results
+                    if (result.trackingNumber) {
+                      form.setValue("trackingNumber", result.trackingNumber);
+                    }
+                    
+                    if (result.carrier) {
+                      form.setValue("carrier", result.carrier.toLowerCase());
+                    }
+                    
+                    if (result.recipient && recipients) {
+                      // Try to find recipient by name
+                      const fullName = result.recipient.toLowerCase();
+                      const matchedRecipient = recipients.find(r => 
+                        `${r.firstName} ${r.lastName}`.toLowerCase().includes(fullName)
+                      );
+                      
+                      if (matchedRecipient) {
+                        form.setValue("recipientId", matchedRecipient.id.toString());
+                      }
+                    }
+                  }
+                  
+                  cleanup();
+                  resolve();
+                }, 'image/jpeg', 0.9);
+              } else {
+                cleanup();
+                reject(new Error("Could not get canvas context"));
+              }
+            } catch (error) {
+              cleanup();
+              reject(error);
+            }
+          };
+          
+          cancelButton.onclick = () => {
+            cleanup();
+            resolve();
+          };
+        });
+      } else {
+        // Fallback to file input if camera not available
+        if (fileInputRef.current) {
+          fileInputRef.current.click();
+        }
       }
     } catch (error) {
       console.error("Camera error:", error);
@@ -168,7 +310,10 @@ export default function MailIntakeForm({ open, onClose, mailroomId }: MailIntake
         title: "Mail item recorded",
         description: "The mail item has been successfully recorded and the recipient notified.",
       });
+      // Invalidate all relevant queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['/api/mail-items/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/mail-items/recent'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/mail-items'] });
       queryClient.invalidateQueries({ queryKey: ['/api/activities/recent'] });
       form.reset();
       setImageData(null);
