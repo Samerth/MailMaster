@@ -14,6 +14,8 @@ const fallbackOrganizations: Organization[] = [
     contactName: "John Smith",
     contactEmail: "john.smith@acmecorp.com",
     contactPhone: "415-555-1234",
+    logo: null,
+    settings: {},
     createdAt: new Date(),
     updatedAt: new Date(),
   }
