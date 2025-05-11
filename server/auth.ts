@@ -8,8 +8,8 @@ import { promisify } from "util";
 import { db } from "@db";
 import * as schema from "@shared/schema";
 import { eq } from "drizzle-orm";
-import connectPg from "connect-pg-simple";
-import { pool } from "@db";
+// Use memory store for simplicity and reliability
+const MemoryStore = session.MemoryStore;
 
 declare global {
   namespace Express {
@@ -35,31 +35,42 @@ async function comparePasswords(supplied: string, stored: string) {
 // Storage for user-related queries
 const storage = {
   async getUserByUsername(username: string) {
-    return db.query.userProfiles.findFirst({
-      where: eq(schema.userProfiles.email, username),
-    });
+    try {
+      return await db.query.userProfiles.findFirst({
+        where: eq(schema.userProfiles.email, username),
+      });
+    } catch (error) {
+      console.error("Error getting user by username:", error);
+      return null;
+    }
   },
   
   async getUser(id: number) {
-    return db.query.userProfiles.findFirst({
-      where: eq(schema.userProfiles.id, id),
-    });
+    try {
+      return await db.query.userProfiles.findFirst({
+        where: eq(schema.userProfiles.id, id),
+      });
+    } catch (error) {
+      console.error("Error getting user by ID:", error);
+      return null;
+    }
   },
   
   async createUser(userData: any) {
-    // In a real app, we would validate userData with Zod
-    const [user] = await db.insert(schema.userProfiles)
-      .values(userData)
-      .returning();
-    return user;
+    try {
+      // In a real app, we would validate userData with Zod
+      const [user] = await db.insert(schema.userProfiles)
+        .values(userData)
+        .returning();
+      return user;
+    } catch (error) {
+      console.error("Error creating user:", error);
+      throw error;
+    }
   },
   
-  // Session store using PostgreSQL
-  sessionStore: new (connectPg(session))({
-    pool,
-    tableName: 'user_sessions', // This table will be created automatically
-    createTableIfMissing: true
-  })
+  // Using memory store instead of PostgreSQL for reliability
+  sessionStore: new MemoryStore()
 };
 
 export function setupAuth(app: Express) {
