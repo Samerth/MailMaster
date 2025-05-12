@@ -3,14 +3,34 @@ import { createClient } from '@supabase/supabase-js';
 import { db } from '@db';
 import * as schema from '@shared/schema';
 import { eq } from 'drizzle-orm';
+import * as pg from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
 
-// Create a Supabase client with the admin key
-const supabase = createClient(
-  process.env.SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-);
+// Create a Supabase client with the admin key - with defensive checks
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error("Supabase URL or key is missing. Check environment variables.");
+}
+
+// Only create the client if both URL and key are available
+const supabase = (supabaseUrl && supabaseKey) ? 
+  createClient(supabaseUrl, supabaseKey) : 
+  null;
 
 export function setupSupabaseAuth(app: Express) {
+  // If Supabase client is not available, log a warning and provide fallback auth
+  if (!supabase) {
+    console.warn("Supabase client not available. Setting up fallback auth routes.");
+    
+    // Simple fallback route for testing
+    app.get('/api/user', (req, res) => {
+      res.status(401).json({ message: "Not authenticated - Supabase auth not configured" });
+    });
+    
+    return; // Exit early to skip setting up the real auth routes
+  }
   // Get user profile
   app.get('/api/user_profile', async (req: Request, res: Response) => {
     try {

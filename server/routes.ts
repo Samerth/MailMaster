@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
+import { setupSupabaseAuth } from "./supabase-auth"; // Import Supabase auth
 import { db } from "@db";
 import { eq, and } from "drizzle-orm";
 import * as schema from "@shared/schema";
@@ -18,8 +19,14 @@ async function hashPassword(password: string) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup authentication routes
-  setupAuth(app);
+  // Setup authentication routes - using both for now during transition
+  if (process.env.USE_LEGACY_AUTH === 'true') {
+    console.log("[Auth] Using legacy authentication");
+    setupAuth(app);
+  } else {
+    console.log("[Auth] Using Supabase authentication");
+    setupSupabaseAuth(app);
+  }
 
   // Organizations routes
   app.get("/api/organizations", async (req, res) => {

@@ -18,7 +18,7 @@ export const pool = new Pool({
 });
 
 // Create Drizzle instance with our schema
-export const db = drizzle(pool);
+export const db = drizzle(pool, { schema });
 
 // Create Supabase client for auth and storage features
 const supabaseUrl = process.env.SUPABASE_URL;
