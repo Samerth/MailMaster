@@ -37,7 +37,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Listen for authentication state changes
   useEffect(() => {
+    // Check for existing session on mount
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          console.log("Found existing session");
+          queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+        }
+      } catch (error) {
+        console.error("Error checking session:", error);
+      }
+    };
+    
+    checkSession();
+    
+    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state changed:", event);
+      
       if (event === 'SIGNED_IN') {
         // Fetch user profile after sign in
         queryClient.invalidateQueries({ queryKey: ['/api/user'] });
@@ -92,6 +110,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
+      console.log("Attempting to login with:", credentials.email);
+      
       // First authenticate with Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
         email: credentials.email,
@@ -99,14 +119,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       
       if (error) {
+        console.error("Supabase auth error:", error);
         throw new Error(error.message);
       }
+      
+      console.log("Supabase auth successful, user:", data.user?.id);
       
       if (!data.session) {
         throw new Error('No session returned from authentication');
       }
       
       // Then fetch the user profile from our API
+      console.log("Fetching user profile with token");
       const res = await fetch('/api/user', {
         headers: {
           'Authorization': `Bearer ${data.session.access_token}`
@@ -114,10 +138,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       
       if (!res.ok) {
-        throw new Error('Failed to fetch user profile');
+        const errorText = await res.text();
+        console.error("API error:", res.status, errorText);
+        throw new Error(`Failed to fetch user profile: ${res.status} ${errorText}`);
       }
       
-      return await res.json();
+      const userData = await res.json();
+      console.log("User profile fetched successfully:", userData.id);
+      return userData;
     },
     onSuccess: (user: UserProfile) => {
       queryClient.setQueryData(["/api/user"], user);

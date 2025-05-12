@@ -110,13 +110,16 @@ export function setupSupabaseAuth(app: Express) {
   // Current user endpoint
   app.get('/api/user', async (req: Request, res: Response) => {
     try {
+      console.log("API /user request received, headers:", Object.keys(req.headers));
       const authHeader = req.headers.authorization;
       
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.log("No authorization header found or invalid format");
         return res.status(401).json({ message: 'Missing or invalid token' });
       }
       
       const token = authHeader.split(' ')[1];
+      console.log("Received auth token (first 10 chars):", token.substring(0, 10) + "...");
       
       try {
         // Verify the token with Supabase
@@ -132,6 +135,49 @@ export function setupSupabaseAuth(app: Express) {
         });
         
         if (!userProfile) {
+          console.log("User profile not found for Supabase user:", user.id);
+          
+          // Handle first-time Supabase users by auto-creating a profile
+          if (user.email) {
+            console.log("Creating new user profile for:", user.email);
+            
+            try {
+              // Get default organization/mailroom
+              const defaultOrg = await db.query.organizations.findFirst();
+              
+              if (!defaultOrg) {
+                return res.status(404).json({ 
+                  message: 'No organization found to assign user to'
+                });
+              }
+              
+              const defaultMailroom = await db.query.mailRooms.findFirst({
+                where: eq(schema.mailRooms.organizationId, defaultOrg.id)
+              });
+              
+              // Create a new profile with basic information
+              const [newProfile] = await db.insert(schema.userProfiles).values({
+                userId: user.id,
+                firstName: user.user_metadata?.first_name || 'New',
+                lastName: user.user_metadata?.last_name || 'User',
+                email: user.email,
+                organizationId: defaultOrg.id,
+                mailRoomId: defaultMailroom?.id || null,
+                role: 'recipient',
+                isActive: true,
+                password: 'supabase-auth', // Not used with Supabase
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                settings: {}
+              }).returning();
+              
+              return res.status(200).json(newProfile);
+            } catch (profileError) {
+              console.error("Error creating user profile:", profileError);
+              return res.status(500).json({ message: 'Error creating user profile' });
+            }
+          }
+          
           return res.status(404).json({ message: 'User profile not found' });
         }
         
