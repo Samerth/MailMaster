@@ -1,6 +1,13 @@
 // Load environment variables from .env file
 import * as dotenv from 'dotenv';
-dotenv.config();
+// This loads the .env file at the root of the project
+dotenv.config({ path: './.env' });
+
+// Log the environment variables for debugging
+console.log("[ENV] Database URL configured:", !!process.env.DATABASE_URL);
+console.log("[ENV] Supabase URL:", process.env.SUPABASE_URL);
+console.log("[ENV] Supabase anon key configured:", !!process.env.SUPABASE_ANON_KEY);
+console.log("[ENV] Supabase service role key configured:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
