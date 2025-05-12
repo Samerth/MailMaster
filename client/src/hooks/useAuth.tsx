@@ -165,47 +165,114 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: async (userData: RegisterData) => {
-      // First register with Supabase Auth
-      const { data, error } = await supabase.auth.signUp({
-        email: userData.email,
-        password: userData.password,
-      });
+      console.log("Attempting to register user:", userData.email);
       
-      if (error) {
-        throw new Error(error.message);
-      }
-      
-      if (!data.user) {
-        throw new Error('No user returned from registration');
-      }
-      
-      // Then create a profile in our database
-      const profileRes = await fetch('/api/register_profile', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${data.session?.access_token || ''}`
-        },
-        body: JSON.stringify({
-          userId: data.user.id,
-          firstName: userData.firstName,
-          lastName: userData.lastName,
+      try {
+        // First register with Supabase Auth
+        const { data, error } = await supabase.auth.signUp({
           email: userData.email,
-        }),
-      });
-      
-      if (!profileRes.ok) {
-        throw new Error('Failed to create user profile');
+          password: userData.password,
+          options: {
+            data: {
+              first_name: userData.firstName,
+              last_name: userData.lastName,
+            }
+          }
+        });
+        
+        if (error) {
+          console.error("Supabase signup error:", error);
+          throw new Error(error.message);
+        }
+        
+        console.log("Supabase signup successful:", data);
+        
+        if (!data.user) {
+          throw new Error('No user returned from registration');
+        }
+        
+        // For email confirmation flows, we need to handle the case where
+        // the user needs to confirm their email
+        if (!data.session) {
+          console.log("Registration successful, email confirmation required");
+          // Create a temporary profile until they confirm email
+          const tempProfile = {
+            id: 0, // Temporary ID
+            userId: data.user.id,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            email: userData.email,
+            organizationId: 1,
+            mailRoomId: null,
+            role: 'recipient',
+            isActive: false, // Not active until email confirmation
+            createdAt: new Date().toISOString(),
+            phone: null,
+            department: null,
+            location: null,
+            password: '',
+            updatedAt: null,
+            settings: {}
+          };
+          
+          // We'll inform the user they need to verify their email
+          toast({
+            title: "Please check your email",
+            description: "A confirmation link has been sent to your email address.",
+          });
+          
+          return tempProfile;
+        }
+        
+        console.log("Creating user profile with Supabase ID:", data.user.id);
+        
+        // Then create a profile in our database
+        const profileRes = await fetch('/api/register_profile', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${data.session?.access_token || ''}`
+          },
+          body: JSON.stringify({
+            userId: data.user.id,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            email: userData.email,
+          }),
+        });
+        
+        const responseText = await profileRes.text();
+        
+        if (!profileRes.ok) {
+          console.error("Error creating profile:", profileRes.status, responseText);
+          throw new Error(`Failed to create user profile: ${responseText}`);
+        }
+        
+        try {
+          return JSON.parse(responseText);
+        } catch (parseError) {
+          console.error("Error parsing profile response:", parseError);
+          throw new Error("Invalid response from server");
+        }
+      } catch (error) {
+        console.error("Registration error:", error);
+        throw error;
       }
-      
-      return await profileRes.json();
     },
     onSuccess: (user: UserProfile) => {
-      queryClient.setQueryData(["/api/user"], user);
-      toast({
-        title: "Registration successful",
-        description: `Welcome, ${user.firstName}!`,
-      });
+      // For email verification flows, we don't want to set the user as logged in
+      // until they've verified their email
+      if (user.id !== 0) {
+        // Only set the user data if this isn't a temporary profile
+        queryClient.setQueryData(["/api/user"], user);
+        toast({
+          title: "Registration successful",
+          description: `Welcome, ${user.firstName}!`,
+        });
+      } else {
+        // For email verification flows, we've already shown a toast in the mutationFn
+        console.log("Waiting for email verification");
+      }
     },
     onError: (error: Error) => {
       toast({
