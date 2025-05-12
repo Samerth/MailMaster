@@ -13,7 +13,7 @@ import { Loader2 } from "lucide-react";
 
 // Login form schema
 const loginSchema = z.object({
-  username: z.string().email({ message: "Please enter a valid email address" }),
+  email: z.string().email({ message: "Please enter a valid email address" }),
   password: z.string().min(6, { message: "Password must be at least 6 characters" }),
 });
 
@@ -41,7 +41,7 @@ export default function AuthPage() {
   const loginForm = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: "",
+      email: "",
       password: "",
     },
   });
@@ -67,7 +67,7 @@ export default function AuthPage() {
   // Handle login submission
   const onLoginSubmit = (values: LoginValues) => {
     loginMutation.mutate({
-      username: values.username,
+      email: values.email,
       password: values.password,
     });
   };
@@ -76,7 +76,6 @@ export default function AuthPage() {
   const onRegisterSubmit = (values: RegisterValues) => {
     // Map our form fields to what the backend expects
     registerMutation.mutate({
-      username: values.email, // Use email as username
       email: values.email,
       password: values.password,
       firstName: values.firstName,
@@ -116,7 +115,7 @@ export default function AuthPage() {
                     <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
                       <FormField
                         control={loginForm.control}
-                        name="username"
+                        name="email"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Email</FormLabel>
