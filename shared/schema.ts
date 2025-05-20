@@ -15,141 +15,141 @@ export const auditActionEnum = pgEnum('audit_action', ['create', 'update', 'dele
 
 // Tables
 export const organizations = pgTable('organizations', {
-  id: serial('id').primaryKey(),
+  id: uuid('id').primaryKey(),
   name: text('name').notNull(),
   address: text('address'),
-  contactName: text('contact_name'),
-  contactEmail: text('contact_email'),
-  contactPhone: text('contact_phone'),
+  contact_name: text('contact_name'),
+  contact_email: text('contact_email'),
+  contact_phone: text('contact_phone'),
   logo: text('logo'),
   settings: jsonb('settings'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow(),
 });
 
 export const mailRooms = pgTable('mail_rooms', {
-  id: serial('id').primaryKey(),
-  organizationId: integer('organization_id').references(() => organizations.id).notNull(),
+  id: uuid('id').primaryKey(),
+  org_id: uuid('org_id').references(() => organizations.id).notNull(),
   name: text('name').notNull(),
   location: text('location'),
-  isActive: boolean('is_active').default(true),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  is_active: boolean('is_active').default(true),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow(),
 });
 
 export const userProfiles = pgTable('user_profiles', {
-  id: serial('id').primaryKey(),
-  userId: uuid('user_id').notNull().unique(),
-  organizationId: integer('organization_id').references(() => organizations.id).notNull(),
-  mailRoomId: integer('mail_room_id').references(() => mailRooms.id),
-  firstName: text('first_name').notNull(),
-  lastName: text('last_name').notNull(),
+  id: uuid('id').primaryKey(),
+  user_id: uuid('user_id').notNull().unique(),
+  org_id: uuid('org_id').references(() => organizations.id).notNull(),
+  mail_room_id: uuid('mail_room_id').references(() => mailRooms.id),
+  first_name: text('first_name').notNull(),
+  last_name: text('last_name').notNull(),
   email: text('email').notNull(),
   password: text('password'),
   phone: text('phone'),
   role: userRoleEnum('role').default('recipient').notNull(),
   department: text('department'),
   location: text('location'),
-  isActive: boolean('is_active').default(true),
+  is_active: boolean('is_active'),
   settings: jsonb('settings'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow(),
 });
 
 export const externalPeople = pgTable('external_people', {
-  id: serial('id').primaryKey(),
-  organizationId: integer('organization_id').references(() => organizations.id).notNull(),
-  firstName: text('first_name').notNull(),
-  lastName: text('last_name').notNull(),
+  id: uuid('id').primaryKey(),
+  org_id: uuid('org_id').references(() => organizations.id).notNull(),
+  first_name: text('first_name').notNull(),
+  last_name: text('last_name').notNull(),
   email: text('email'),
   phone: text('phone'),
   department: text('department'),
   location: text('location'),
-  externalId: text('external_id'),
-  isActive: boolean('is_active').default(true),
+  external_id: text('external_id'),
+  is_active: boolean('is_active').default(true),
   metadata: jsonb('metadata'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow(),
 });
 
 export const mailItems = pgTable('mail_items', {
-  id: serial('id').primaryKey(),
-  organizationId: integer('organization_id').references(() => organizations.id).notNull(),
-  mailRoomId: integer('mail_room_id').references(() => mailRooms.id).notNull(),
-  recipientId: integer('recipient_id').references(() => userProfiles.id),
-  externalRecipientId: integer('external_recipient_id').references(() => externalPeople.id),
-  trackingNumber: text('tracking_number'),
+  id: uuid('id').primaryKey(),
+  org_id: uuid('org_id').references(() => organizations.id).notNull(),
+  mail_room_id: uuid('mail_room_id').references(() => mailRooms.id).notNull(),
+  recipient_id: uuid('recipient_id').references(() => userProfiles.id),
+  external_recipient_id: uuid('external_recipient_id').references(() => externalPeople.id),
+  tracking_number: text('tracking_number'),
   carrier: carrierEnum('carrier').default('other'),
   type: mailItemTypeEnum('type').default('package'),
   description: text('description'),
   notes: text('notes'),
-  isPriority: boolean('is_priority').default(false),
+  is_priority: boolean('is_priority').default(false),
   status: mailItemStatusEnum('status').default('pending'),
-  receivedAt: timestamp('received_at').defaultNow().notNull(),
-  notifiedAt: timestamp('notified_at'),
-  pickedUpAt: timestamp('picked_up_at'),
-  processedById: integer('processed_by_id').references(() => userProfiles.id),
-  labelImage: text('label_image'),
+  received_at: timestamp('received_at').defaultNow(),
+  notified_at: timestamp('notified_at'),
+  picked_up_at: timestamp('picked_up_at'),
+  processed_by_id: uuid('processed_by_id').references(() => userProfiles.id),
+  label_image: text('label_image'),
   metadata: jsonb('metadata'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow(),
 });
 
 export const pickups = pgTable('pickups', {
-  id: serial('id').primaryKey(),
-  mailItemId: integer('mail_item_id').references(() => mailItems.id).notNull(),
-  recipientId: integer('recipient_id').references(() => userProfiles.id),
-  externalRecipientId: integer('external_recipient_id').references(() => externalPeople.id),
-  processedById: integer('processed_by_id').references(() => userProfiles.id).notNull(),
-  pickedUpAt: timestamp('picked_up_at').defaultNow().notNull(),
+  id: uuid('id').primaryKey(),
+  mail_item_id: uuid('mail_item_id').references(() => mailItems.id).notNull(),
+  recipient_id: uuid('recipient_id').references(() => userProfiles.id),
+  external_recipient_id: uuid('external_recipient_id').references(() => externalPeople.id),
+  processed_by_id: uuid('processed_by_id').references(() => userProfiles.id).notNull(),
+  picked_up_at: timestamp('picked_up_at').defaultNow(),
   signature: text('signature'),
-  photoConfirmation: text('photo_confirmation'),
+  photo_confirmation: text('photo_confirmation'),
   notes: text('notes'),
   metadata: jsonb('metadata'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow(),
 });
 
 export const notifications = pgTable('notifications', {
-  id: serial('id').primaryKey(),
-  organizationId: integer('organization_id').references(() => organizations.id).notNull(),
-  mailItemId: integer('mail_item_id').references(() => mailItems.id).notNull(),
-  recipientId: integer('recipient_id').references(() => userProfiles.id),
-  externalRecipientId: integer('external_recipient_id').references(() => externalPeople.id),
+  id: uuid('id').primaryKey(),
+  org_id: uuid('org_id').references(() => organizations.id).notNull(),
+  mail_item_id: uuid('mail_item_id').references(() => mailItems.id).notNull(),
+  recipient_id: uuid('recipient_id').references(() => userProfiles.id),
+  external_recipient_id: uuid('external_recipient_id').references(() => externalPeople.id),
   type: notificationTypeEnum('type').default('email'),
   destination: text('destination').notNull(),
   message: text('message').notNull(),
   status: notificationStatusEnum('status').default('pending'),
-  sentAt: timestamp('sent_at'),
-  deliveredAt: timestamp('delivered_at'),
+  sent_at: timestamp('sent_at'),
+  delivered_at: timestamp('delivered_at'),
   metadata: jsonb('metadata'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow(),
 });
 
 export const auditLogs = pgTable('audit_logs', {
-  id: serial('id').primaryKey(),
-  organizationId: integer('organization_id').references(() => organizations.id).notNull(),
-  userId: integer('user_id').references(() => userProfiles.id),
+  id: uuid('id').primaryKey(),
+  org_id: uuid('org_id').references(() => organizations.id).notNull(),
+  user_id: uuid('user_id').references(() => userProfiles.id),
   action: auditActionEnum('action').notNull(),
-  tableName: text('table_name'),
-  recordId: integer('record_id'),
+  table_name: text('table_name'),
+  record_id: uuid('record_id'),
   details: jsonb('details'),
-  ipAddress: text('ip_address'),
-  userAgent: text('user_agent'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  ip_address: text('ip_address'),
+  user_agent: text('user_agent'),
+  created_at: timestamp('created_at').defaultNow(),
 });
 
 export const integrations = pgTable('integrations', {
-  id: serial('id').primaryKey(),
-  organizationId: integer('organization_id').references(() => organizations.id).notNull(),
+  id: uuid('id').primaryKey(),
+  org_id: uuid('org_id').references(() => organizations.id).notNull(),
   name: text('name').notNull(),
   type: integrationTypeEnum('type').default('csv'),
   configuration: jsonb('configuration'),
-  lastSyncedAt: timestamp('last_synced_at'),
-  isActive: boolean('is_active').default(true),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  last_synced_at: timestamp('last_synced_at'),
+  is_active: boolean('is_active').default(true),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow(),
 });
 
 // Relations
@@ -165,7 +165,7 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
 
 export const mailRoomsRelations = relations(mailRooms, ({ one, many }) => ({
   organization: one(organizations, {
-    fields: [mailRooms.organizationId],
+    fields: [mailRooms.org_id],
     references: [organizations.id],
   }),
   userProfiles: many(userProfiles),
@@ -174,11 +174,11 @@ export const mailRoomsRelations = relations(mailRooms, ({ one, many }) => ({
 
 export const userProfilesRelations = relations(userProfiles, ({ one, many }) => ({
   organization: one(organizations, {
-    fields: [userProfiles.organizationId],
+    fields: [userProfiles.org_id],
     references: [organizations.id],
   }),
   mailRoom: one(mailRooms, {
-    fields: [userProfiles.mailRoomId],
+    fields: [userProfiles.mail_room_id],
     references: [mailRooms.id],
   }),
   receivedMailItems: many(mailItems, { relationName: 'recipient_mail_items' }),
@@ -191,7 +191,7 @@ export const userProfilesRelations = relations(userProfiles, ({ one, many }) => 
 
 export const externalPeopleRelations = relations(externalPeople, ({ one, many }) => ({
   organization: one(organizations, {
-    fields: [externalPeople.organizationId],
+    fields: [externalPeople.org_id],
     references: [organizations.id],
   }),
   mailItems: many(mailItems),
@@ -201,24 +201,24 @@ export const externalPeopleRelations = relations(externalPeople, ({ one, many })
 
 export const mailItemsRelations = relations(mailItems, ({ one, many }) => ({
   organization: one(organizations, {
-    fields: [mailItems.organizationId],
+    fields: [mailItems.org_id],
     references: [organizations.id],
   }),
   mailRoom: one(mailRooms, {
-    fields: [mailItems.mailRoomId],
+    fields: [mailItems.mail_room_id],
     references: [mailRooms.id],
   }),
   recipient: one(userProfiles, {
-    fields: [mailItems.recipientId],
+    fields: [mailItems.recipient_id],
     references: [userProfiles.id],
     relationName: 'recipient_mail_items',
   }),
   externalRecipient: one(externalPeople, {
-    fields: [mailItems.externalRecipientId],
+    fields: [mailItems.external_recipient_id],
     references: [externalPeople.id],
   }),
   processedBy: one(userProfiles, {
-    fields: [mailItems.processedById],
+    fields: [mailItems.processed_by_id],
     references: [userProfiles.id],
     relationName: 'processor_mail_items',
   }),
@@ -228,20 +228,20 @@ export const mailItemsRelations = relations(mailItems, ({ one, many }) => ({
 
 export const pickupsRelations = relations(pickups, ({ one }) => ({
   mailItem: one(mailItems, {
-    fields: [pickups.mailItemId],
+    fields: [pickups.mail_item_id],
     references: [mailItems.id],
   }),
   recipient: one(userProfiles, {
-    fields: [pickups.recipientId],
+    fields: [pickups.recipient_id],
     references: [userProfiles.id],
     relationName: 'recipient_pickups',
   }),
   externalRecipient: one(externalPeople, {
-    fields: [pickups.externalRecipientId],
+    fields: [pickups.external_recipient_id],
     references: [externalPeople.id],
   }),
   processedBy: one(userProfiles, {
-    fields: [pickups.processedById],
+    fields: [pickups.processed_by_id],
     references: [userProfiles.id],
     relationName: 'processor_pickups',
   }),
@@ -249,37 +249,37 @@ export const pickupsRelations = relations(pickups, ({ one }) => ({
 
 export const notificationsRelations = relations(notifications, ({ one }) => ({
   organization: one(organizations, {
-    fields: [notifications.organizationId],
+    fields: [notifications.org_id],
     references: [organizations.id],
   }),
   mailItem: one(mailItems, {
-    fields: [notifications.mailItemId],
+    fields: [notifications.mail_item_id],
     references: [mailItems.id],
   }),
   recipient: one(userProfiles, {
-    fields: [notifications.recipientId],
+    fields: [notifications.recipient_id],
     references: [userProfiles.id],
   }),
   externalRecipient: one(externalPeople, {
-    fields: [notifications.externalRecipientId],
+    fields: [notifications.external_recipient_id],
     references: [externalPeople.id],
   }),
 }));
 
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   organization: one(organizations, {
-    fields: [auditLogs.organizationId],
+    fields: [auditLogs.org_id],
     references: [organizations.id],
   }),
   user: one(userProfiles, {
-    fields: [auditLogs.userId],
+    fields: [auditLogs.user_id],
     references: [userProfiles.id],
   }),
 }));
 
 export const integrationsRelations = relations(integrations, ({ one }) => ({
   organization: one(organizations, {
-    fields: [integrations.organizationId],
+    fields: [integrations.org_id],
     references: [organizations.id],
   }),
 }));
@@ -287,7 +287,7 @@ export const integrationsRelations = relations(integrations, ({ one }) => ({
 // Schemas for validation
 export const organizationsInsertSchema = createInsertSchema(organizations, {
   name: (schema) => schema.min(3, "Organization name must be at least 3 characters"),
-  contactEmail: (schema) => schema.email("Must provide a valid email").optional().nullable(),
+  contact_email: (schema) => schema.email("Must provide a valid email").optional().nullable(),
 });
 export type OrganizationInsert = z.infer<typeof organizationsInsertSchema>;
 export type Organization = typeof organizations.$inferSelect;
@@ -299,8 +299,8 @@ export type MailRoomInsert = z.infer<typeof mailRoomsInsertSchema>;
 export type MailRoom = typeof mailRooms.$inferSelect;
 
 export const userProfilesInsertSchema = createInsertSchema(userProfiles, {
-  firstName: (schema) => schema.min(2, "First name must be at least 2 characters"),
-  lastName: (schema) => schema.min(2, "Last name must be at least 2 characters"),
+  first_name: (schema) => schema.min(2, "First name must be at least 2 characters"),
+  last_name: (schema) => schema.min(2, "Last name must be at least 2 characters"),
   email: (schema) => schema.email("Must provide a valid email"),
   password: (schema) => schema.optional(),
 });
@@ -308,8 +308,8 @@ export type UserProfileInsert = z.infer<typeof userProfilesInsertSchema>;
 export type UserProfile = typeof userProfiles.$inferSelect;
 
 export const externalPeopleInsertSchema = createInsertSchema(externalPeople, {
-  firstName: (schema) => schema.min(2, "First name must be at least 2 characters"),
-  lastName: (schema) => schema.min(2, "Last name must be at least 2 characters"),
+  first_name: (schema) => schema.min(2, "First name must be at least 2 characters"),
+  last_name: (schema) => schema.min(2, "Last name must be at least 2 characters"),
   email: (schema) => schema.email("Must provide a valid email").optional().nullable(),
 });
 export type ExternalPersonInsert = z.infer<typeof externalPeopleInsertSchema>;

@@ -197,7 +197,7 @@ export function setupAuth(app: Express) {
             role: "admin" as "admin", // Cast to enum type
             department: "Development",
             location: "Local",
-            isActive: true,
+            is_active: true,
             settings: {},
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -226,7 +226,7 @@ export function setupAuth(app: Express) {
           role: "admin" as "admin", // Cast to enum type
           department: "Development",
           location: "Local",
-          isActive: true,
+          is_active: true,
           settings: {},
           createdAt: new Date(),
           updatedAt: new Date(),

@@ -15,17 +15,17 @@ import type {
 } from "@/types";
 
 // Organization management
-export const getOrganizationById = async (id: number) => {
+export const getOrganizationById = async (id: string) => {
   return db.query.organizations.findFirst({
     where: eq(schema.organizations.id, id)
   });
 };
 
-export const updateOrganization = async (id: number, data: Partial<schema.Organization>) => {
+export const updateOrganization = async (id: string, data: Partial<schema.Organization>) => {
   const [updated] = await db.update(schema.organizations)
     .set({ 
       ...data,
-      updatedAt: new Date()
+      updated_at: new Date()
     })
     .where(eq(schema.organizations.id, id))
     .returning();
@@ -34,14 +34,14 @@ export const updateOrganization = async (id: number, data: Partial<schema.Organi
 };
 
 // Mailroom management
-export const getMailroomsByOrganizationId = async (organizationId: number) => {
+export const getMailroomsByOrganizationId = async (organizationId: string) => {
   return db.query.mailRooms.findMany({
-    where: eq(schema.mailRooms.organizationId, organizationId),
+    where: eq(schema.mailRooms.org_id, organizationId),
     orderBy: [schema.mailRooms.name]
   });
 };
 
-export const getMailroomById = async (id: number) => {
+export const getMailroomById = async (id: string) => {
   return db.query.mailRooms.findFirst({
     where: eq(schema.mailRooms.id, id)
   });
@@ -55,11 +55,11 @@ export const createMailroom = async (data: schema.MailRoomInsert) => {
   return mailroom;
 };
 
-export const updateMailroom = async (id: number, data: Partial<schema.MailRoom>) => {
+export const updateMailroom = async (id: string, data: Partial<schema.MailRoom>) => {
   const [updated] = await db.update(schema.mailRooms)
     .set({ 
       ...data,
-      updatedAt: new Date()
+      updated_at: new Date()
     })
     .where(eq(schema.mailRooms.id, id))
     .returning();
@@ -74,17 +74,17 @@ export const getUserProfileByUserId = async (userId: string) => {
   });
 };
 
-export const getUserProfileById = async (id: number) => {
+export const getUserProfileById = async (id: string) => {
   return db.query.userProfiles.findFirst({
     where: eq(schema.userProfiles.id, id)
   });
 };
 
-export const updateUserProfile = async (id: number, data: Partial<schema.UserProfile>) => {
+export const updateUserProfile = async (id: string, data: Partial<schema.UserProfile>) => {
   const [updated] = await db.update(schema.userProfiles)
     .set({ 
       ...data,
-      updatedAt: new Date()
+      updated_at: new Date()
     })
     .where(eq(schema.userProfiles.id, id))
     .returning();
@@ -93,21 +93,21 @@ export const updateUserProfile = async (id: number, data: Partial<schema.UserPro
 };
 
 // Get internal recipients (user profiles) by organization
-export const getInternalRecipientsByOrganizationId = async (organizationId: number) => {
+export const getInternalRecipientsByOrganizationId = async (organizationId: string) => {
   return db.query.userProfiles.findMany({
     where: and(
-      eq(schema.userProfiles.organizationId, organizationId),
-      eq(schema.userProfiles.isActive, true)
+      eq(schema.userProfiles.org_id, organizationId),
+      eq(schema.userProfiles.is_active, true)
     ),
-    orderBy: [schema.userProfiles.lastName, schema.userProfiles.firstName]
+    orderBy: [schema.userProfiles.last_name, schema.userProfiles.first_name]
   });
 };
 
 // External people management
-export const getExternalPeopleByOrganizationId = async (organizationId: number) => {
+export const getExternalPeopleByOrganizationId = async (organizationId: string) => {
   return db.query.externalPeople.findMany({
-    where: eq(schema.externalPeople.organizationId, organizationId),
-    orderBy: [schema.externalPeople.lastName, schema.externalPeople.firstName]
+    where: eq(schema.externalPeople.org_id, organizationId),
+    orderBy: [schema.externalPeople.last_name, schema.externalPeople.first_name]
   });
 };
 
@@ -119,11 +119,11 @@ export const createExternalPerson = async (data: schema.ExternalPersonInsert) =>
   return person;
 };
 
-export const updateExternalPerson = async (id: number, data: Partial<schema.ExternalPerson>) => {
+export const updateExternalPerson = async (id: string, data: Partial<schema.ExternalPerson>) => {
   const [updated] = await db.update(schema.externalPeople)
     .set({ 
       ...data,
-      updatedAt: new Date()
+      updated_at: new Date()
     })
     .where(eq(schema.externalPeople.id, id))
     .returning();
@@ -140,11 +140,11 @@ export const createMailItem = async (data: schema.MailItemInsert) => {
   return mailItem;
 };
 
-export const updateMailItem = async (id: number, data: Partial<schema.MailItem>) => {
+export const updateMailItem = async (id: string, data: Partial<schema.MailItem>) => {
   const [updated] = await db.update(schema.mailItems)
     .set({ 
       ...data,
-      updatedAt: new Date()
+      updated_at: new Date()
     })
     .where(eq(schema.mailItems.id, id))
     .returning();
@@ -152,7 +152,7 @@ export const updateMailItem = async (id: number, data: Partial<schema.MailItem>)
   return updated;
 };
 
-export const getMailItemById = async (id: number) => {
+export const getMailItemById = async (id: string) => {
   return db.query.mailItems.findFirst({
     where: eq(schema.mailItems.id, id),
     with: {
@@ -165,23 +165,23 @@ export const getMailItemById = async (id: number) => {
 };
 
 export const getPendingMailItems = async (
-  organizationId: number, 
+  organizationId: string, 
   page = 1, 
   pageSize = 10, 
   search = '',
-  mailroomId?: number
+  mailroomId?: string
 ): Promise<PaginatedResult<any>> => {
   // Build the query conditions
   const conditions = [
-    eq(schema.mailItems.organizationId, organizationId),
+    eq(schema.mailItems.org_id, organizationId),
     or(
-      eq(schema.mailItems.status, 'pending'),
-      eq(schema.mailItems.status, 'notified')
+      eq(schema.mailItems.status, schema.mailItemStatusEnum.enumValues[0]),
+      eq(schema.mailItems.status, schema.mailItemStatusEnum.enumValues[1])
     )
   ];
   
   if (mailroomId) {
-    conditions.push(eq(schema.mailItems.mailRoomId, mailroomId));
+    conditions.push(eq(schema.mailItems.mail_room_id, mailroomId));
   }
   
   // Create search query if needed
@@ -191,7 +191,7 @@ export const getPendingMailItems = async (
     const searchCondition = or(
       like(sql`CONCAT(up.first_name, ' ', up.last_name)`, `%${search}%`),
       like(sql`CONCAT(ep.first_name, ' ', ep.last_name)`, `%${search}%`),
-      like(schema.mailItems.trackingNumber || '', `%${search}%`),
+      like(schema.mailItems.tracking_number || '', `%${search}%`),
       like(schema.mailItems.description || '', `%${search}%`)
     );
     conditions.push(searchCondition);
@@ -201,12 +201,12 @@ export const getPendingMailItems = async (
   const countQuery = db.select({ count: sql<number>`count(*)` })
     .from(schema.mailItems)
     .leftJoin(
-      schema.userProfiles.as('up'), 
-      eq(schema.mailItems.recipientId, sql`up.id`)
+      schema.userProfiles, 
+      eq(schema.mailItems.recipient_id, schema.userProfiles.id)
     )
     .leftJoin(
-      schema.externalPeople.as('ep'),
-      eq(schema.mailItems.externalRecipientId, sql`ep.id`)
+      schema.externalPeople,
+      eq(schema.mailItems.external_recipient_id, schema.externalPeople.id)
     )
     .where(and(...conditions));
   
@@ -236,7 +236,7 @@ export const getPendingMailItems = async (
       processedBy: true,
       mailRoom: true
     },
-    orderBy: [desc(schema.mailItems.isPriority), desc(schema.mailItems.receivedAt)],
+    orderBy: [desc(schema.mailItems.is_priority), desc(schema.mailItems.received_at)],
     limit: pageSize,
     offset
   });
@@ -250,8 +250,8 @@ export const getPendingMailItems = async (
       ...item,
       recipient: {
         id: recipient?.id || 0,
-        firstName: recipient?.firstName || 'Unknown',
-        lastName: recipient?.lastName || 'Recipient',
+        firstName: recipient?.first_name || 'Unknown',
+        lastName: recipient?.last_name || 'Recipient',
         department: recipient?.department || null,
         location: recipient?.location || null
       }
@@ -271,11 +271,11 @@ export const getPendingMailItems = async (
   };
 };
 
-export const getRecentMailItems = async (organizationId: number, limit = 10, mailroomId?: number) => {
-  const conditions = [eq(schema.mailItems.organizationId, organizationId)];
+export const getRecentMailItems = async (organizationId: string, limit = 10, mailroomId?: string) => {
+  const conditions = [eq(schema.mailItems.org_id, organizationId)];
   
   if (mailroomId) {
-    conditions.push(eq(schema.mailItems.mailRoomId, mailroomId));
+    conditions.push(eq(schema.mailItems.mail_room_id, mailroomId));
   }
   
   const items = await db.query.mailItems.findMany({
@@ -285,7 +285,7 @@ export const getRecentMailItems = async (organizationId: number, limit = 10, mai
       externalRecipient: true,
       processedBy: true
     },
-    orderBy: [desc(schema.mailItems.receivedAt)],
+    orderBy: [desc(schema.mailItems.received_at)],
     limit
   });
   
@@ -298,8 +298,8 @@ export const getRecentMailItems = async (organizationId: number, limit = 10, mai
       ...item,
       recipient: {
         id: recipient?.id || 0,
-        firstName: recipient?.firstName || 'Unknown',
-        lastName: recipient?.lastName || 'Recipient',
+        firstName: recipient?.first_name || 'Unknown',
+        lastName: recipient?.last_name || 'Recipient',
         department: recipient?.department || null,
         location: recipient?.location || null
       }
@@ -308,7 +308,7 @@ export const getRecentMailItems = async (organizationId: number, limit = 10, mai
 };
 
 export const getMailHistory = async (
-  organizationId: number,
+  organizationId: string,
   params: {
     page?: number;
     pageSize?: number;
@@ -316,7 +316,7 @@ export const getMailHistory = async (
     status?: string;
     dateFrom?: string;
     dateTo?: string;
-    mailroomId?: number;
+    mailroomId?: string;
   }
 ): Promise<PaginatedResult<MailHistoryItem>> => {
   const {
@@ -330,10 +330,10 @@ export const getMailHistory = async (
   } = params;
   
   // Build the query conditions
-  const conditions = [eq(schema.mailItems.organizationId, organizationId)];
+  const conditions = [eq(schema.mailItems.org_id, organizationId)];
   
   if (mailroomId) {
-    conditions.push(eq(schema.mailItems.mailRoomId, mailroomId));
+    conditions.push(eq(schema.mailItems.mail_room_id, mailroomId));
   }
   
   if (status) {
@@ -341,11 +341,11 @@ export const getMailHistory = async (
   }
   
   if (dateFrom) {
-    conditions.push(sql`DATE(${schema.mailItems.receivedAt}) >= ${dateFrom}`);
+    conditions.push(sql`DATE(${schema.mailItems.received_at}) >= ${dateFrom}`);
   }
   
   if (dateTo) {
-    conditions.push(sql`DATE(${schema.mailItems.receivedAt}) <= ${dateTo}`);
+    conditions.push(sql`DATE(${schema.mailItems.received_at}) <= ${dateTo}`);
   }
   
   // Create search query if needed
@@ -353,7 +353,7 @@ export const getMailHistory = async (
     const searchCondition = or(
       like(sql`CONCAT(up.first_name, ' ', up.last_name)`, `%${search}%`),
       like(sql`CONCAT(ep.first_name, ' ', ep.last_name)`, `%${search}%`),
-      like(schema.mailItems.trackingNumber || '', `%${search}%`),
+      like(schema.mailItems.tracking_number || '', `%${search}%`),
       like(schema.mailItems.description || '', `%${search}%`)
     );
     conditions.push(searchCondition);
@@ -363,12 +363,12 @@ export const getMailHistory = async (
   const countQuery = db.select({ count: sql<number>`count(*)` })
     .from(schema.mailItems)
     .leftJoin(
-      schema.userProfiles.as('up'), 
-      eq(schema.mailItems.recipientId, sql`up.id`)
+      schema.userProfiles, 
+      eq(schema.mailItems.recipient_id, schema.userProfiles.id)
     )
     .leftJoin(
-      schema.externalPeople.as('ep'),
-      eq(schema.mailItems.externalRecipientId, sql`ep.id`)
+      schema.externalPeople,
+      eq(schema.mailItems.external_recipient_id, schema.externalPeople.id)
     )
     .where(and(...conditions));
   
@@ -398,7 +398,7 @@ export const getMailHistory = async (
       processedBy: true,
       mailRoom: true
     },
-    orderBy: [desc(schema.mailItems.receivedAt)],
+    orderBy: [desc(schema.mailItems.received_at)],
     limit: pageSize,
     offset
   });
@@ -412,8 +412,8 @@ export const getMailHistory = async (
       ...item,
       recipient: {
         id: recipient?.id || 0,
-        firstName: recipient?.firstName || 'Unknown',
-        lastName: recipient?.lastName || 'Recipient',
+        firstName: recipient?.first_name || 'Unknown',
+        lastName: recipient?.last_name || 'Recipient',
         department: recipient?.department || null,
         location: recipient?.location || null
       }
@@ -434,25 +434,25 @@ export const getMailHistory = async (
 };
 
 // Dashboard statistics
-export const getMailStats = async (organizationId: number, mailroomId?: number) => {
+export const getMailStats = async (organizationId: string, mailroomId?: string) => {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
   
   // Base conditions for all queries
-  const baseConditions = [eq(schema.mailItems.organizationId, organizationId)];
+  const baseConditions = [eq(schema.mailItems.org_id, organizationId)];
   
   if (mailroomId) {
-    baseConditions.push(eq(schema.mailItems.mailRoomId, mailroomId));
+    baseConditions.push(eq(schema.mailItems.mail_room_id, mailroomId));
   }
   
   // Pending count (pending or notified status)
   const pendingConditions = [
     ...baseConditions,
     or(
-      eq(schema.mailItems.status, 'pending'),
-      eq(schema.mailItems.status, 'notified')
+      eq(schema.mailItems.status, schema.mailItemStatusEnum.enumValues[0]),
+      eq(schema.mailItems.status, schema.mailItemStatusEnum.enumValues[1])
     )
   ];
   
@@ -463,7 +463,7 @@ export const getMailStats = async (organizationId: number, mailroomId?: number) 
   // Priority count
   const priorityConditions = [
     ...pendingConditions,
-    eq(schema.mailItems.isPriority, true)
+    eq(schema.mailItems.is_priority, true)
   ];
   
   const priorityQuery = db.select({ count: sql<number>`count(*)` })
@@ -473,8 +473,8 @@ export const getMailStats = async (organizationId: number, mailroomId?: number) 
   // Delivered today count
   const deliveredTodayConditions = [
     ...baseConditions,
-    eq(schema.mailItems.status, 'picked_up'),
-    sql`DATE(${schema.mailItems.pickedUpAt}) = ${today.toISOString().split('T')[0]}`
+    eq(schema.mailItems.status, schema.mailItemStatusEnum.enumValues[2]),
+    sql`DATE(${schema.mailItems.picked_up_at}) = ${today.toISOString().split('T')[0]}`
   ];
   
   const deliveredTodayQuery = db.select({ count: sql<number>`count(*)` })
@@ -484,8 +484,8 @@ export const getMailStats = async (organizationId: number, mailroomId?: number) 
   // Delivered yesterday count for comparison
   const deliveredYesterdayConditions = [
     ...baseConditions,
-    eq(schema.mailItems.status, 'picked_up'),
-    sql`DATE(${schema.mailItems.pickedUpAt}) = ${yesterday.toISOString().split('T')[0]}`
+    eq(schema.mailItems.status, schema.mailItemStatusEnum.enumValues[2]),
+    sql`DATE(${schema.mailItems.picked_up_at}) = ${yesterday.toISOString().split('T')[0]}`
   ];
   
   const deliveredYesterdayQuery = db.select({ count: sql<number>`count(*)` })
@@ -498,7 +498,7 @@ export const getMailStats = async (organizationId: number, mailroomId?: number) 
   
   const agingConditions = [
     ...pendingConditions,
-    sql`${schema.mailItems.receivedAt} < ${fiveDaysAgo.toISOString()}`
+    sql`${schema.mailItems.received_at} < ${fiveDaysAgo.toISOString()}`
   ];
   
   const agingQuery = db.select({ count: sql<number>`count(*)` })
@@ -507,7 +507,7 @@ export const getMailStats = async (organizationId: number, mailroomId?: number) 
   
   // Oldest item
   const oldestQuery = db.select({
-    days: sql<number>`EXTRACT(DAY FROM (NOW() - MAX(${schema.mailItems.receivedAt})))`
+    days: sql<number>`EXTRACT(DAY FROM (NOW() - MAX(${schema.mailItems.received_at})))`
   })
     .from(schema.mailItems)
     .where(and(...pendingConditions));
@@ -517,14 +517,14 @@ export const getMailStats = async (organizationId: number, mailroomId?: number) 
   twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
   
   const processingTimeQuery = db.select({
-    avg: sql<number>`AVG(EXTRACT(DAY FROM (${schema.mailItems.pickedUpAt} - ${schema.mailItems.receivedAt})))`
+    avg: sql<number>`AVG(EXTRACT(DAY FROM (${schema.mailItems.picked_up_at} - ${schema.mailItems.received_at})))`
   })
     .from(schema.mailItems)
     .where(and(
       ...baseConditions,
-      eq(schema.mailItems.status, 'picked_up'),
-      not(isNull(schema.mailItems.pickedUpAt)),
-      sql`${schema.mailItems.pickedUpAt} >= ${twoWeeksAgo.toISOString()}`
+      eq(schema.mailItems.status, schema.mailItemStatusEnum.enumValues[2]),
+      not(isNull(schema.mailItems.picked_up_at)),
+      sql`${schema.mailItems.picked_up_at} >= ${twoWeeksAgo.toISOString()}`
     ));
   
   // Processing time from previous period for comparison
@@ -532,15 +532,15 @@ export const getMailStats = async (organizationId: number, mailroomId?: number) 
   fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 14);
   
   const prevProcessingTimeQuery = db.select({
-    avg: sql<number>`AVG(EXTRACT(DAY FROM (${schema.mailItems.pickedUpAt} - ${schema.mailItems.receivedAt})))`
+    avg: sql<number>`AVG(EXTRACT(DAY FROM (${schema.mailItems.picked_up_at} - ${schema.mailItems.received_at})))`
   })
     .from(schema.mailItems)
     .where(and(
       ...baseConditions,
-      eq(schema.mailItems.status, 'picked_up'),
-      not(isNull(schema.mailItems.pickedUpAt)),
-      sql`${schema.mailItems.pickedUpAt} >= ${fourWeeksAgo.toISOString()}`,
-      sql`${schema.mailItems.pickedUpAt} < ${twoWeeksAgo.toISOString()}`
+      eq(schema.mailItems.status, schema.mailItemStatusEnum.enumValues[2]),
+      not(isNull(schema.mailItems.picked_up_at)),
+      sql`${schema.mailItems.picked_up_at} >= ${fourWeeksAgo.toISOString()}`,
+      sql`${schema.mailItems.picked_up_at} < ${twoWeeksAgo.toISOString()}`
     ));
   
   // Execute all queries in parallel
@@ -595,17 +595,17 @@ export const getMailStats = async (organizationId: number, mailroomId?: number) 
 
 // Recent activity for dashboard
 export const getRecentActivity = async (
-  organizationId: number, 
+  organizationId: string, 
   limit = 10, 
-  mailroomId?: number
+  mailroomId?: string
 ): Promise<ActivityItem[]> => {
   const activities: ActivityItem[] = [];
   
   // Base conditions for all queries
-  const baseConditions = [eq(schema.mailItems.organizationId, organizationId)];
+  const baseConditions = [eq(schema.mailItems.org_id, organizationId)];
   
   if (mailroomId) {
-    baseConditions.push(eq(schema.mailItems.mailRoomId, mailroomId));
+    baseConditions.push(eq(schema.mailItems.mail_room_id, mailroomId));
   }
   
   // Recent mail items received (limited to last 30 days)
@@ -615,22 +615,22 @@ export const getRecentActivity = async (
   const recentMailItems = await db.query.mailItems.findMany({
     where: and(
       ...baseConditions,
-      sql`${schema.mailItems.receivedAt} >= ${thirtyDaysAgo.toISOString()}`
+      sql`${schema.mailItems.received_at} >= ${thirtyDaysAgo.toISOString()}`
     ),
     with: {
       recipient: true,
       externalRecipient: true,
       processedBy: true
     },
-    orderBy: [desc(schema.mailItems.receivedAt)],
+    orderBy: [desc(schema.mailItems.received_at)],
     limit: limit * 2 // Get extra to filter later
   });
   
   // Recent pickups
   const recentPickups = await db.query.pickups.findMany({
     where: and(
-      eq(schema.pickups.mailItem.organizationId, organizationId),
-      sql`${schema.pickups.pickedUpAt} >= ${thirtyDaysAgo.toISOString()}`
+      eq(schema.pickups.mailItem.org_id, organizationId),
+      sql`${schema.pickups.picked_up_at} >= ${thirtyDaysAgo.toISOString()}`
     ),
     with: {
       mailItem: true,
@@ -638,22 +638,22 @@ export const getRecentActivity = async (
       externalRecipient: true,
       processedBy: true
     },
-    orderBy: [desc(schema.pickups.pickedUpAt)],
+    orderBy: [desc(schema.pickups.picked_up_at)],
     limit: limit * 2 // Get extra to filter later
   });
   
   // Recent notifications
   const recentNotifications = await db.query.notifications.findMany({
     where: and(
-      eq(schema.notifications.organizationId, organizationId),
-      sql`${schema.notifications.createdAt} >= ${thirtyDaysAgo.toISOString()}`
+      eq(schema.notifications.org_id, organizationId),
+      sql`${schema.notifications.created_at} >= ${thirtyDaysAgo.toISOString()}`
     ),
     with: {
       mailItem: true,
       recipient: true,
       externalRecipient: true
     },
-    orderBy: [desc(schema.notifications.createdAt)],
+    orderBy: [desc(schema.notifications.created_at)],
     limit: limit * 2 // Get extra to filter later
   });
   
@@ -665,10 +665,10 @@ export const getRecentActivity = async (
     activities.push({
       id: item.id,
       type: 'received',
-      description: `Package received for ${recipient.firstName} ${recipient.lastName}`,
-      details: `${item.carrier.toUpperCase()} ${item.type} - Recorded by ${item.processedBy?.firstName || 'Staff'}`,
-      timestamp: item.receivedAt.toISOString(),
-      status: item.isPriority ? 'urgent' : 'new'
+      description: `Package received for ${recipient.first_name} ${recipient.last_name}`,
+      details: `${item.carrier.toUpperCase()} ${item.type} - Recorded by ${item.processedBy?.first_name || 'Staff'}`,
+      timestamp: item.received_at.toISOString(),
+      status: item.is_priority ? 'urgent' : 'new'
     });
   });
   
@@ -680,9 +680,9 @@ export const getRecentActivity = async (
     activities.push({
       id: pickup.id,
       type: 'pickup',
-      description: `${recipient.firstName} ${recipient.lastName} picked up package`,
-      details: `${pickup.mailItem.carrier.toUpperCase()} - Package ID: ${pickup.mailItem.trackingNumber || 'N/A'}`,
-      timestamp: pickup.pickedUpAt.toISOString(),
+      description: `${recipient.first_name} ${recipient.last_name} picked up package`,
+      details: `${pickup.mailItem.carrier.toUpperCase()} - Package ID: ${pickup.mailItem.tracking_number || 'N/A'}`,
+      timestamp: pickup.picked_up_at.toISOString(),
       status: 'picked_up'
     });
   });
@@ -695,9 +695,9 @@ export const getRecentActivity = async (
     activities.push({
       id: notification.id,
       type: 'notification',
-      description: `Notification sent to ${recipient.firstName} ${recipient.lastName}`,
+      description: `Notification sent to ${recipient.first_name} ${recipient.last_name}`,
       details: `${notification.type.toUpperCase()} - ${notification.mailItem.type}`,
-      timestamp: notification.createdAt.toISOString(),
+      timestamp: notification.created_at.toISOString(),
       status: 'notification'
     });
   });
@@ -710,13 +710,13 @@ export const getRecentActivity = async (
 
 // Dashboard insights
 export const getPackageDistribution = async (
-  organizationId: number,
-  mailroomId?: number
+  organizationId: string,
+  mailroomId?: string
 ): Promise<PackageDistribution[]> => {
-  const conditions = [eq(schema.mailItems.organizationId, organizationId)];
+  const conditions = [eq(schema.mailItems.org_id, organizationId)];
   
   if (mailroomId) {
-    conditions.push(eq(schema.mailItems.mailRoomId, mailroomId));
+    conditions.push(eq(schema.mailItems.mail_room_id, mailroomId));
   }
   
   // Get counts by type
@@ -767,13 +767,13 @@ export const getPackageDistribution = async (
 };
 
 export const getMailVolumeInsight = async (
-  organizationId: number,
-  mailroomId?: number
+  organizationId: string,
+  mailroomId?: string
 ): Promise<Insight> => {
-  const conditions = [eq(schema.mailItems.organizationId, organizationId)];
+  const conditions = [eq(schema.mailItems.org_id, organizationId)];
   
   if (mailroomId) {
-    conditions.push(eq(schema.mailItems.mailRoomId, mailroomId));
+    conditions.push(eq(schema.mailItems.mail_room_id, mailroomId));
   }
   
   // Get counts by day for the past 30 days
@@ -781,16 +781,16 @@ export const getMailVolumeInsight = async (
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   
   const dailyCountsQuery = db.select({
-    date: sql<string>`DATE(${schema.mailItems.receivedAt})`,
+    date: sql<string>`DATE(${schema.mailItems.received_at})`,
     count: sql<number>`count(*)`
   })
     .from(schema.mailItems)
     .where(and(
       ...conditions,
-      sql`${schema.mailItems.receivedAt} >= ${thirtyDaysAgo.toISOString()}`
+      sql`${schema.mailItems.received_at} >= ${thirtyDaysAgo.toISOString()}`
     ))
-    .groupBy(sql`DATE(${schema.mailItems.receivedAt})`)
-    .orderBy(sql`DATE(${schema.mailItems.receivedAt})`);
+    .groupBy(sql`DATE(${schema.mailItems.received_at})`)
+    .orderBy(sql`DATE(${schema.mailItems.received_at})`);
   
   const dailyCounts = await dailyCountsQuery;
   
@@ -880,33 +880,33 @@ export const getMailVolumeInsight = async (
 };
 
 export const getBusiestPeriods = async (
-  organizationId: number,
-  mailroomId?: number
+  organizationId: string,
+  mailroomId?: string
 ): Promise<BusiestPeriod[]> => {
-  const conditions = [eq(schema.mailItems.organizationId, organizationId)];
+  const conditions = [eq(schema.mailItems.org_id, organizationId)];
   
   if (mailroomId) {
-    conditions.push(eq(schema.mailItems.mailRoomId, mailroomId));
+    conditions.push(eq(schema.mailItems.mail_room_id, mailroomId));
   }
   
   // Get counts by day of week
   const dayOfWeekQuery = db.select({
-    day: sql<number>`EXTRACT(DOW FROM ${schema.mailItems.receivedAt})`,
+    day: sql<number>`EXTRACT(DOW FROM ${schema.mailItems.received_at})`,
     count: sql<number>`count(*)`
   })
     .from(schema.mailItems)
     .where(and(...conditions))
-    .groupBy(sql`EXTRACT(DOW FROM ${schema.mailItems.receivedAt})`)
+    .groupBy(sql`EXTRACT(DOW FROM ${schema.mailItems.received_at})`)
     .orderBy(sql`count(*) DESC`);
   
   // Get counts by hour of day
   const hourOfDayQuery = db.select({
-    hour: sql<number>`EXTRACT(HOUR FROM ${schema.mailItems.receivedAt})`,
+    hour: sql<number>`EXTRACT(HOUR FROM ${schema.mailItems.received_at})`,
     count: sql<number>`count(*)`
   })
     .from(schema.mailItems)
     .where(and(...conditions))
-    .groupBy(sql`EXTRACT(HOUR FROM ${schema.mailItems.receivedAt})`)
+    .groupBy(sql`EXTRACT(HOUR FROM ${schema.mailItems.received_at})`)
     .orderBy(sql`count(*) DESC`);
   
   const [dayOfWeekResults, hourOfDayResults] = await Promise.all([
@@ -953,9 +953,9 @@ export const createPickup = async (data: schema.PickupInsert) => {
     // Update the mail item status
     await tx.update(schema.mailItems)
       .set({
-        status: 'picked_up',
-        pickedUpAt: data.pickedUpAt || new Date(),
-        updatedAt: new Date()
+        status: schema.mailItemStatusEnum.enumValues[2],
+        picked_up_at: data.picked_up_at || new Date(),
+        updated_at: new Date()
       })
       .where(eq(schema.mailItems.id, data.mailItemId))
       .returning();
@@ -964,7 +964,7 @@ export const createPickup = async (data: schema.PickupInsert) => {
   });
 };
 
-export const getPickupById = async (id: number) => {
+export const getPickupById = async (id: string) => {
   return db.query.pickups.findFirst({
     where: eq(schema.pickups.id, id),
     with: {
@@ -985,12 +985,12 @@ export const createNotification = async (data: schema.NotificationInsert) => {
   return notification;
 };
 
-export const updateMailItemNotificationStatus = async (mailItemId: number) => {
+export const updateMailItemNotificationStatus = async (mailItemId: string) => {
   const [updated] = await db.update(schema.mailItems)
     .set({
-      status: 'notified',
-      notifiedAt: new Date(),
-      updatedAt: new Date()
+      status: schema.mailItemStatusEnum.enumValues[1],
+      notified_at: new Date(),
+      updated_at: new Date()
     })
     .where(eq(schema.mailItems.id, mailItemId))
     .returning();
@@ -999,10 +999,10 @@ export const updateMailItemNotificationStatus = async (mailItemId: number) => {
 };
 
 // Integration management
-export const getIntegrationsByOrganizationId = async (organizationId: number) => {
+export const getIntegrationsByOrganizationId = async (organizationId: string) => {
   return db.query.integrations.findMany({
-    where: eq(schema.integrations.organizationId, organizationId),
-    orderBy: [desc(schema.integrations.isActive), schema.integrations.name]
+    where: eq(schema.integrations.org_id, organizationId),
+    orderBy: [desc(schema.integrations.is_active), schema.integrations.name]
   });
 };
 
@@ -1014,11 +1014,11 @@ export const createIntegration = async (data: schema.IntegrationInsert) => {
   return integration;
 };
 
-export const updateIntegration = async (id: number, data: Partial<schema.Integration>) => {
+export const updateIntegration = async (id: string, data: Partial<schema.Integration>) => {
   const [updated] = await db.update(schema.integrations)
     .set({
       ...data,
-      updatedAt: new Date()
+      updated_at: new Date()
     })
     .where(eq(schema.integrations.id, id))
     .returning();

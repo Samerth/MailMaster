@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
-import { setupSupabaseAuth } from "./supabase-auth"; // Import Supabase auth
+import { setupSupabaseAuth, requireSupabaseAuth } from "./supabase-auth"; // Import Supabase auth and middleware
 import { db } from "@db";
 import { eq, and } from "drizzle-orm";
 import * as schema from "@shared/schema";
@@ -29,17 +29,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Organizations routes
-  app.get("/api/organizations", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
+  app.get("/api/organizations", requireSupabaseAuth, async (req, res) => {
+    const user = (req as any).user;
     try {
       // Get organizations the user has access to
       const orgs = await db.query.organizations.findMany({
-        where: eq(schema.organizations.id, req.user.organizationId)
+        where: eq(schema.organizations.id, user.id)
       });
-      
       res.json(orgs);
     } catch (error) {
       console.error("Error fetching organizations:", error);
@@ -48,48 +44,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Update organization
-  app.patch("/api/organizations/:id", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
-    const organizationId = parseInt(req.params.id);
-    
-    // Verify the organization belongs to the user
-    if (organizationId !== req.user.organizationId) {
+  app.patch("/api/organizations/:id", requireSupabaseAuth, async (req, res) => {
+    const organization_id = req.params.id;
+    const user = (req as any).user;
+    if (organization_id !== user.id) {
       return res.status(403).json({ message: "Unauthorized to update this organization" });
     }
-    
     try {
       // Only update specific fields to prevent unwanted changes
-      const allowedFields = ['name', 'address', 'contactName', 'contactEmail', 'contactPhone', 'logo'];
+      const allowedFields = ['name', 'address', 'contact_name', 'contact_email', 'contact_phone', 'logo', 'settings', 'updated_at'];
       const updateData: Record<string, any> = {};
-      
       allowedFields.forEach(field => {
         if (req.body[field] !== undefined) {
           updateData[field] = req.body[field];
         }
       });
-      
-      // Add updatedAt timestamp
-      updateData.updatedAt = new Date();
-      
+      updateData.updated_at = new Date();
       const [updatedOrg] = await db.update(schema.organizations)
         .set(updateData)
-        .where(eq(schema.organizations.id, organizationId))
+        .where(eq(schema.organizations.id, organization_id))
         .returning();
-      
-      // Log the update
       await db.insert(schema.auditLogs)
         .values({
-          organizationId: req.user.organizationId,
-          userId: req.user.id,
+          organization_id: user.id,
+          user_id: user.id,
           action: "update",
-          tableName: "organizations",
-          recordId: organizationId,
+          table_name: "organizations",
+          record_id: organization_id,
           details: JSON.stringify({ message: "Updated organization settings" })
         });
-      
       res.json(updatedOrg);
     } catch (error) {
       console.error("Error updating organization:", error);
@@ -98,22 +81,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Mailrooms routes
-  app.get("/api/mailrooms", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
-    const { organizationId } = req.query;
+  app.get("/api/mailrooms", requireSupabaseAuth, async (req, res) => {
+    const { organization_id } = req.query;
     
     try {
-      // If organizationId is provided in the query, use it
+      // If organization_id is provided in the query, use it
       // Otherwise, use the user's organization ID from the session
-      const orgId = organizationId 
-        ? Number(organizationId) 
-        : req.user.organizationId;
+      const user = (req as any).user;
+      const org_id = organization_id 
+        ? Number(organization_id) 
+        : user.organization_id;
         
       const mailrooms = await db.query.mailRooms.findMany({
-        where: eq(schema.mailRooms.organizationId, orgId)
+        where: eq(schema.mailRooms.organization_id, org_id)
       });
       
       res.json(mailrooms);
@@ -124,18 +104,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Create mailroom
-  app.post("/api/mailrooms", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
+  app.post("/api/mailrooms", requireSupabaseAuth, async (req, res) => {
     try {
+      const user = (req as any).user;
       const mailroomData = {
-        organizationId: req.user.organizationId,
+        organization_id: user.organization_id,
         name: req.body.name,
         location: req.body.location || null,
-        contactEmail: req.body.contactEmail || null,
-        contactPhone: req.body.contactPhone || null,
+        contact_email: req.body.contact_email || null,
+        contact_phone: req.body.contact_phone || null,
         status: req.body.status || "active",
       };
       
@@ -145,11 +122,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create an audit log
       await db.insert(schema.auditLogs).values({
-        organizationId: req.user.organizationId,
-        userId: req.user.id,
+        organization_id: user.organization_id,
+        user_id: user.id,
         action: "create",
-        tableName: "mail_rooms",
-        recordId: mailroom.id,
+        table_name: "mail_rooms",
+        record_id: mailroom.id,
         details: JSON.stringify({ message: `Created mailroom: ${mailroom.name}` })
       });
       
@@ -161,19 +138,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Update mailroom
-  app.patch("/api/mailrooms/:id", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
-    const mailroomId = parseInt(req.params.id);
+  app.patch("/api/mailrooms/:id", requireSupabaseAuth, async (req, res) => {
+    const mailroom_id = req.params.id;
     
     try {
       // Verify the mailroom belongs to the user's organization
+      const user = (req as any).user;
       const mailroom = await db.query.mailRooms.findFirst({
         where: and(
-          eq(schema.mailRooms.id, mailroomId),
-          eq(schema.mailRooms.organizationId, req.user.organizationId)
+          eq(schema.mailRooms.id, mailroom_id),
+          eq(schema.mailRooms.organization_id, user.organization_id)
         ),
       });
       
@@ -182,7 +156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Only update specific fields
-      const allowedFields = ['name', 'location', 'contactEmail', 'contactPhone', 'status'];
+      const allowedFields = ['name', 'location', 'contact_email', 'contact_phone', 'status'];
       const updateData: Record<string, any> = {};
       
       allowedFields.forEach(field => {
@@ -192,20 +166,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Add updatedAt timestamp
-      updateData.updatedAt = new Date();
+      updateData.updated_at = new Date();
       
       const [updatedMailroom] = await db.update(schema.mailRooms)
         .set(updateData)
-        .where(eq(schema.mailRooms.id, mailroomId))
+        .where(eq(schema.mailRooms.id, mailroom_id))
         .returning();
       
       // Log the update
       await db.insert(schema.auditLogs).values({
-        organizationId: req.user.organizationId,
-        userId: req.user.id,
+        organization_id: user.organization_id,
+        user_id: user.id,
         action: "update",
-        tableName: "mail_rooms",
-        recordId: mailroomId,
+        table_name: "mail_rooms",
+        record_id: mailroom_id,
         details: JSON.stringify({ message: `Updated mailroom: ${mailroom.name}` })
       });
       
@@ -217,15 +191,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Recent activity endpoint
-  app.get("/api/recent-activity", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
+  app.get("/api/recent-activity", requireSupabaseAuth, async (req, res) => {
     try {
+      const user = (req as any).user;
       const activities = await db.query.auditLogs.findMany({
-        where: eq(schema.auditLogs.organizationId, req.user.organizationId),
-        orderBy: (auditLogs, { desc }) => [desc(auditLogs.createdAt)],
+        where: eq(schema.auditLogs.organization_id, user.organization_id),
+        orderBy: (auditLogs, { desc }) => [desc(auditLogs.created_at)],
         limit: 10,
         with: {
           user: true
@@ -240,15 +211,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Mail items
-  app.get("/api/mail-items", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
+  app.get("/api/mail-items", requireSupabaseAuth, async (req, res) => {
     try {
+      const user = (req as any).user;
       const items = await db.query.mailItems.findMany({
-        where: eq(schema.mailItems.organizationId, req.user.organizationId),
-        orderBy: (mailItems, { desc }) => [desc(mailItems.createdAt)],
+        where: eq(schema.mailItems.org_id, user.organization_id),
+        orderBy: (mailItems, { desc }) => [desc(mailItems.created_at)],
         limit: 20
       });
       
@@ -260,25 +228,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Create a new mail item
-  app.post("/api/mail-items", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
+  app.post("/api/mail-items", requireSupabaseAuth, async (req, res) => {
     try {
+      const user = (req as any).user;
       // Create a new mail item
       const mailItemData = {
-        organizationId: req.user.organizationId,
-        mailRoomId: req.body.mailRoomId || req.user.mailRoomId,
-        recipientId: req.body.recipientId,
-        trackingNumber: req.body.trackingNumber || null,
+        organization_id: user.organization_id,
+        mail_room_id: req.body.mail_room_id || user.mail_room_id,
+        recipient_id: req.body.recipient_id,
+        tracking_number: req.body.tracking_number || null,
         carrier: req.body.carrier || "other",
         type: req.body.type || "package",
         notes: req.body.notes || null,
-        isPriority: !!req.body.isPriority,
+        is_priority: !!req.body.is_priority,
         status: schema.mailItemStatusEnum.enumValues[0], // "pending"
-        processedById: req.user.id,
-        labelImage: req.body.labelImage || null,
+        processed_by_id: user.id,
+        label_image: req.body.label_image || null,
       };
       
       const [mailItem] = await db.insert(schema.mailItems)
@@ -288,12 +253,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create an audit log entry
       await db.insert(schema.auditLogs)
         .values([{
-          organizationId: req.user.organizationId,
+          organization_id: user.organization_id,
           action: schema.auditActionEnum.enumValues[0], // "create"
-          details: `Created new mail item (${mailItem.type}) for recipient ID ${mailItem.recipientId}`,
-          tableName: "mail_items",
-          recordId: mailItem.id,
-          userId: req.user.id
+          details: `Created new mail item (${mailItem.type}) for recipient ID ${mailItem.recipient_id}`,
+          table_name: "mail_items",
+          record_id: mailItem.id,
+          user_id: user.id
         }]);
       
       res.status(201).json(mailItem);
@@ -304,14 +269,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Recipients
-  app.get("/api/recipients", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
+  app.get("/api/recipients", requireSupabaseAuth, async (req, res) => {
     try {
+      const user = (req as any).user;
       const recipients = await db.query.userProfiles.findMany({
-        where: eq(schema.userProfiles.organizationId, req.user.organizationId)
+        where: eq(schema.userProfiles.organization_id, user.organization_id)
       });
       
       res.json(recipients);
@@ -322,15 +284,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get internal recipients
-  app.get("/api/recipients/internal", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
+  app.get("/api/recipients/internal", requireSupabaseAuth, async (req, res) => {
     try {
+      const user = (req as any).user;
       const recipients = await db.query.userProfiles.findMany({
         where: and(
-          eq(schema.userProfiles.organizationId, req.user.organizationId),
+          eq(schema.userProfiles.organization_id, user.organization_id),
           eq(schema.userProfiles.role, "recipient")
         )
       });
@@ -343,14 +302,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get external recipients
-  app.get("/api/recipients/external", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
+  app.get("/api/recipients/external", requireSupabaseAuth, async (req, res) => {
     try {
+      const user = (req as any).user;
       const recipients = await db.query.externalPeople.findMany({
-        where: eq(schema.externalPeople.organizationId, req.user.organizationId)
+        where: eq(schema.externalPeople.organization_id, user.organization_id)
       });
       
       res.json(recipients);
@@ -361,26 +317,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add internal recipient
-  app.post("/api/recipients/internal", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
+  app.post("/api/recipients/internal", requireSupabaseAuth, async (req, res) => {
     try {
+      const user = (req as any).user;
       // Generate a UUID for the user
-      const userId = crypto.randomUUID();
+      const user_id = crypto.randomUUID();
       
       const [recipient] = await db.insert(schema.userProfiles)
         .values({
-          firstName: req.body.firstName,
-          lastName: req.body.lastName,
+          first_name: req.body.first_name,
+          last_name: req.body.last_name,
           email: req.body.email,
           phone: req.body.phone || null,
           department: req.body.department || null,
           location: req.body.location || null,
-          userId,
-          organizationId: req.user.organizationId,
-          mailRoomId: req.user.mailRoomId || null,
+          user_id,
+          organization_id: user.organization_id,
+          mail_room_id: user.mail_room_id || null,
           role: "recipient",
           password: await hashPassword("welcome123"), // Default password
         })
@@ -394,21 +347,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add external recipient
-  app.post("/api/recipients/external", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
+  app.post("/api/recipients/external", requireSupabaseAuth, async (req, res) => {
     try {
+      const user = (req as any).user;
       const [recipient] = await db.insert(schema.externalPeople)
         .values({
-          firstName: req.body.firstName,
-          lastName: req.body.lastName,
+          first_name: req.body.first_name,
+          last_name: req.body.last_name,
           email: req.body.email,
           phone: req.body.phone || null,
           department: req.body.department || null,
           location: req.body.location || null,
-          organizationId: req.user.organizationId,
+          organization_id: user.organization_id,
         })
         .returning();
       
@@ -420,11 +370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Process mail OCR scan
-  app.post("/api/mail/scan", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
+  app.post("/api/mail/scan", requireSupabaseAuth, async (req, res) => {
     try {
       // In a real implementation, we would use tesseract.js on the backend
       // or a cloud OCR service to process the image
@@ -433,9 +379,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mockData = {
         success: true,
         text: "Sample OCR text extracted from the image",
-        trackingNumber: `${Math.floor(Math.random() * 1000000000)}`,
+        tracking_number: `${Math.floor(Math.random() * 1000000000)}`,
         carrier: ["ups", "usps", "fedex", "dhl", "other"][Math.floor(Math.random() * 5)],
-        recipientName: "John Doe"
+        recipient_name: "John Doe"
       };
       
       // Add a small delay to simulate processing
@@ -452,24 +398,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Dashboard endpoints
-  app.get("/api/mail-items/stats", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
+  app.get("/api/mail-items/stats", requireSupabaseAuth, async (req, res) => {
     try {
       // In a full implementation, we would query the database for these stats
       
       // For demonstration, return sample statistics
       res.json({
-        pendingCount: Math.floor(Math.random() * 20),
-        priorityCount: Math.floor(Math.random() * 10),
-        deliveredTodayCount: Math.floor(Math.random() * 15),
-        deliveredDiff: Math.floor(Math.random() * 30) - 15,
-        agingCount: Math.floor(Math.random() * 8),
-        oldestDays: Math.floor(Math.random() * 10) + 1,
-        avgProcessingDays: (Math.random() * 3).toFixed(1),
-        processingDiff: (Math.random() * 2 - 1).toFixed(1)
+        pending_count: Math.floor(Math.random() * 20),
+        priority_count: Math.floor(Math.random() * 10),
+        delivered_today_count: Math.floor(Math.random() * 15),
+        delivered_diff: Math.floor(Math.random() * 30) - 15,
+        aging_count: Math.floor(Math.random() * 8),
+        oldest_days: Math.floor(Math.random() * 10) + 1,
+        avg_processing_days: (Math.random() * 3).toFixed(1),
+        processing_diff: (Math.random() * 2 - 1).toFixed(1)
       });
     } catch (error) {
       console.error("Error fetching mail stats:", error);
@@ -477,15 +419,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/activities/recent", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
+  app.get("/api/activities/recent", requireSupabaseAuth, async (req, res) => {
     try {
+      const user = (req as any).user;
       const activities = await db.query.auditLogs.findMany({
-        where: eq(schema.auditLogs.organizationId, req.user.organizationId),
-        orderBy: (logs, { desc }) => [desc(logs.createdAt)],
+        where: eq(schema.auditLogs.organization_id, user.organization_id),
+        orderBy: (logs, { desc }) => [desc(logs.created_at)],
         limit: 10,
         with: {
           user: true
@@ -495,7 +434,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If no activities yet, create some sample data
       if (activities.length === 0) {
         const types = ["create", "update", "delete"];
-        const actionDescriptions = [
+        const action_descriptions = [
           "Added new package",
           "Updated recipient information",
           "Processed mail pickup",
@@ -507,12 +446,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: i + 1,
           timestamp: new Date(Date.now() - i * 3600000).toISOString(),
           user: {
-            firstName: req.user.firstName,
-            lastName: req.user.lastName,
-            id: req.user.id
+            first_name: user.first_name,
+            last_name: user.last_name,
+            id: user.id
           },
           type: types[Math.floor(Math.random() * types.length)],
-          description: actionDescriptions[i % actionDescriptions.length]
+          description: action_descriptions[i % action_descriptions.length]
         }));
         
         return res.json(sampleActivities);
@@ -521,10 +460,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Map the DB results to a more frontend-friendly format
       const formattedActivities = activities.map(activity => ({
         id: activity.id,
-        timestamp: activity.createdAt.toISOString(),
+        timestamp: activity.created_at.toISOString(),
         user: {
-          firstName: activity.user?.firstName || "System",
-          lastName: activity.user?.lastName || "User",
+          first_name: activity.user?.first_name || "System",
+          last_name: activity.user?.last_name || "User",
           id: activity.user?.id || 0
         },
         type: activity.action,
@@ -538,18 +477,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/mail-items/pending", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
+  app.get("/api/mail-items/pending", requireSupabaseAuth, async (req, res) => {
     try {
+      const user = (req as any).user;
       const items = await db.query.mailItems.findMany({
         where: and(
-          eq(schema.mailItems.organizationId, req.user.organizationId),
+          eq(schema.mailItems.org_id, user.organization_id),
           eq(schema.mailItems.status, "pending")
         ),
-        orderBy: (mailItems, { desc }) => [desc(mailItems.createdAt)],
+        orderBy: (mailItems, { desc }) => [desc(mailItems.created_at)],
         limit: 10,
         with: {
           recipient: true
@@ -564,19 +500,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get recent mail items for the mail intake view
-  app.get("/api/mail-items/recent", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
+  app.get("/api/mail-items/recent", requireSupabaseAuth, async (req, res) => {
     try {
+      const user = (req as any).user;
       const items = await db.query.mailItems.findMany({
-        where: eq(schema.mailItems.organizationId, req.user.organizationId),
-        orderBy: (mailItems, { desc }) => [desc(mailItems.createdAt)],
+        where: eq(schema.mailItems.org_id, user.organization_id),
+        orderBy: (mailItems, { desc }) => [desc(mailItems.created_at)],
         limit: 20,
         with: {
           recipient: true,
-          processedBy: true
+          processed_by: true
         }
       });
       
@@ -588,11 +521,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Add insights endpoints for the dashboard
-  app.get("/api/insights/distribution", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
+  app.get("/api/insights/distribution", requireSupabaseAuth, async (req, res) => {
     try {
       // Return package type distribution
       res.json([
@@ -607,13 +536,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/insights/mail-volume", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
+  app.get("/api/insights/mail-volume", requireSupabaseAuth, async (req, res) => {
     try {
       // Generate 6 months of data
+      const user = (req as any).user;
       const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
       const data = months.map(month => ({
         month,
@@ -628,13 +554,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/insights/busiest-periods", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
+  app.get("/api/insights/busiest-periods", requireSupabaseAuth, async (req, res) => {
     try {
       // Generate hourly distribution
+      const user = (req as any).user;
       const hours = Array.from({ length: 8 }, (_, i) => ({
         hour: `${i + 9}:00`,
         value: Math.floor(Math.random() * 20) + 5
@@ -647,13 +570,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/mail-items/history", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
+  app.get("/api/mail-items/history", requireSupabaseAuth, async (req, res) => {
+    const user = (req as any).user;
     const page = Number(req.query.page) || 1;
-    const pageSize = Number(req.query.pageSize) || 10;
+    const page_size = Number(req.query.page_size) || 10;
     const search = req.query.search as string || '';
     const status = req.query.status as string || '';
     
@@ -662,9 +582,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // In a real implementation, we would query the database with proper filters
       res.json({
         items: [],
-        totalCount: 0,
+        total_count: 0,
         page,
-        pageSize
+        page_size
       });
     } catch (error) {
       console.error("Error fetching mail history:", error);

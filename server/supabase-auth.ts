@@ -4,6 +4,8 @@ import { db } from '@db';
 import * as schema from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import * as dotenv from 'dotenv';
+import type { NextFunction } from 'express';
+import crypto from 'crypto';
 
 // Ensure environment variables are loaded
 dotenv.config({ path: './.env' });
@@ -36,15 +38,15 @@ export function setupSupabaseAuth(app: Express) {
   // Get user profile
   app.get('/api/user_profile', async (req: Request, res: Response) => {
     try {
-      const { userId } = req.query;
+      const { user_id } = req.query;
       
-      if (!userId || typeof userId !== 'string') {
+      if (!user_id || typeof user_id !== 'string') {
         return res.status(400).json({ message: 'User ID is required' });
       }
       
       // Check if the user exists in our database
       const userProfile = await db.query.userProfiles.findFirst({
-        where: eq(schema.userProfiles.userId, userId)
+        where: eq(schema.userProfiles.user_id, user_id)
       });
       
       if (!userProfile) {
@@ -61,16 +63,16 @@ export function setupSupabaseAuth(app: Express) {
   // Create user profile (used after Supabase auth signup)
   app.post('/api/register_profile', async (req: Request, res: Response) => {
     try {
-      const { userId, firstName, lastName, email, organizationId, role } = req.body;
+      const { user_id, first_name, last_name, email, org_id, role } = req.body;
       
-      if (!userId || !email) {
+      if (!user_id || !email) {
         return res.status(400).json({ message: 'User ID and email are required' });
       }
       
       try {
         // First check if a profile already exists
         const existingProfile = await db.query.userProfiles.findFirst({
-          where: eq(schema.userProfiles.userId, userId)
+          where: eq(schema.userProfiles.user_id, user_id)
         });
         
         if (existingProfile) {
@@ -82,21 +84,22 @@ export function setupSupabaseAuth(app: Express) {
         
         // Get default mailroom for the organization
         const defaultMailroom = await db.query.mailRooms.findFirst({
-          where: eq(schema.mailRooms.organizationId, organizationId || 1)
+          where: eq(schema.mailRooms.org_id, org_id)
         });
         
         // Create new profile
         const [profile] = await db.insert(schema.userProfiles).values({
-          userId,
-          firstName: firstName || 'New',
-          lastName: lastName || 'User',
+          id: crypto.randomUUID(),
+          user_id,
+          first_name: first_name || 'New',
+          last_name: last_name || 'User',
           email,
-          organizationId: organizationId || 1, // Default to first organization
-          mailRoomId: defaultMailroom?.id, // May be null
+          org_id,
+          mail_room_id: defaultMailroom?.id, // May be null
           role: role || 'recipient',
-          isActive: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          is_active: true,
+          created_at: new Date(),
+          updated_at: new Date(),
           password: 'supabase-auth', // Not used with Supabase auth
           settings: {}
         }).returning();
@@ -110,17 +113,17 @@ export function setupSupabaseAuth(app: Express) {
         console.log('Using fallback mock profile for:', email);
         
         const mockProfile = {
-          id: Math.floor(Math.random() * 1000),
-          userId,
-          firstName: firstName || 'Test',
-          lastName: lastName || 'User',
+          id: crypto.randomUUID(),
+          user_id,
+          first_name: first_name || 'Test',
+          last_name: last_name || 'User',
           email,
-          organizationId: organizationId || 1,
-          mailRoomId: null,
+          org_id,
+          mail_room_id: null,
           role: role || 'admin',
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
           settings: {}
         };
         
@@ -160,7 +163,7 @@ export function setupSupabaseAuth(app: Express) {
         try {
           // Try to get user profile from our database
           const userProfile = await db.query.userProfiles.findFirst({
-            where: eq(schema.userProfiles.userId, user.id)
+            where: eq(schema.userProfiles.user_id, user.id)
           });
           
           if (!userProfile) {
@@ -181,22 +184,23 @@ export function setupSupabaseAuth(app: Express) {
                 }
                 
                 const defaultMailroom = await db.query.mailRooms.findFirst({
-                  where: eq(schema.mailRooms.organizationId, defaultOrg.id)
+                  where: eq(schema.mailRooms.org_id, defaultOrg.id)
                 });
                 
                 // Create a new profile with basic information
                 const [newProfile] = await db.insert(schema.userProfiles).values({
-                  userId: user.id,
-                  firstName: user.user_metadata?.first_name || 'New',
-                  lastName: user.user_metadata?.last_name || 'User',
+                  id: crypto.randomUUID(),
+                  user_id: user.id,
+                  first_name: user.user_metadata?.first_name || 'New',
+                  last_name: user.user_metadata?.last_name || 'User',
                   email: user.email,
-                  organizationId: defaultOrg.id,
-                  mailRoomId: defaultMailroom?.id || null,
+                  org_id: defaultOrg.id,
+                  mail_room_id: defaultMailroom?.id || null,
                   role: 'recipient',
-                  isActive: true,
+                  //is_active: '',
                   password: 'supabase-auth', // Not used with Supabase
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
+                  created_at: new Date(),
+                  updated_at: new Date(),
                   settings: {}
                 }).returning();
                 
@@ -209,20 +213,20 @@ export function setupSupabaseAuth(app: Express) {
                 
                 // Generate a mock profile for testing
                 const mockProfile = {
-                  id: Math.floor(Math.random() * 1000),
-                  userId: user.id,
-                  firstName: user.user_metadata?.first_name || 'Test',
-                  lastName: user.user_metadata?.last_name || 'User',
+                  id: crypto.randomUUID(),
+                  user_id: user.id,
+                  first_name: user.user_metadata?.first_name || 'Test',
+                  last_name: user.user_metadata?.last_name || 'User',
                   email: user.email,
-                  organizationId: 1,
-                  mailRoomId: null,
+                  org_id: 1,
+                  mail_room_id: null,
                   role: 'admin',
-                  isActive: true,
+                  is_active: true,
                   phone: null,
                   department: null,
                   location: null,
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
                   settings: {}
                 };
                 
@@ -242,20 +246,20 @@ export function setupSupabaseAuth(app: Express) {
           
           // Generate a mock profile based on Supabase user data
           const mockProfile = {
-            id: Math.floor(Math.random() * 1000),
-            userId: user.id,
-            firstName: user.user_metadata?.first_name || 'Test',
-            lastName: user.user_metadata?.last_name || 'User',
+            id: crypto.randomUUID(),
+            user_id: user.id,
+            first_name: user.user_metadata?.first_name || 'Test',
+            last_name: user.user_metadata?.last_name || 'User',
             email: user.email,
-            organizationId: 1,
-            mailRoomId: null,
+            org_id: 1,
+            mail_room_id: null,
             role: 'admin',
-            isActive: true,
+            is_active: true,
             phone: null,
             department: null,
             location: null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
             settings: {}
           };
           
@@ -292,7 +296,7 @@ export function setupSupabaseAuth(app: Express) {
         
         // Check if the user is an admin
         const adminProfile = await db.query.userProfiles.findFirst({
-          where: eq(schema.userProfiles.userId, user.id)
+          where: eq(schema.userProfiles.user_id, user.id)
         });
         
         if (!adminProfile || adminProfile.role !== 'admin') {
@@ -301,7 +305,7 @@ export function setupSupabaseAuth(app: Express) {
         
         // Get all users for the admin's organization
         const users = await db.query.userProfiles.findMany({
-          where: eq(schema.userProfiles.organizationId, adminProfile.organizationId)
+          where: eq(schema.userProfiles.org_id, adminProfile.org_id)
         });
         
         return res.status(200).json(users);
@@ -313,5 +317,40 @@ export function setupSupabaseAuth(app: Express) {
       console.error('Error fetching users:', error);
       return res.status(500).json({ message: 'Server error fetching users' });
     }
+  });
+}
+
+// Supabase JWT authentication middleware
+export function requireSupabaseAuth(req: Request, res: Response, next: NextFunction) {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Missing or invalid token' });
+  }
+  const token = authHeader.split(' ')[1];
+
+  if (!supabase) {
+    return res.status(500).json({ message: 'Supabase not configured' });
+  }
+
+  supabase.auth.getUser(token).then(async ({ data, error }) => {
+    if (error || !data.user) {
+      return res.status(401).json({ message: 'Invalid or expired token' });
+    }
+    // Find user profile in DB
+    const userProfile = await db.query.userProfiles.findFirst({
+      where: eq(schema.userProfiles.user_id, data.user.id)
+    });
+    if (!userProfile) {
+      return res.status(401).json({ message: 'User profile not found' });
+    }
+    // Attach user profile to req.user
+    (req as any).user = userProfile;
+    next();
+  }).catch(() => {
+    return res.status(401).json({ message: 'Authentication error' });
   });
 }
